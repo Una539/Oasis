@@ -26,6 +26,7 @@ function App() {
       <form onSubmit={addTodo}>
         <input
           placeholder="enter todo and click +"
+          class="input"
           required
           value={newTitle()}
           onInput={(e) => setTitle(e.currentTarget.value)}
@@ -35,7 +36,7 @@ function App() {
 
       <For each={todos}>
         {(todo, i) => (
-          <div>
+          <div class="todo-item">
             <input
               type="checkbox"
               checked={todo.done}
@@ -43,10 +44,14 @@ function App() {
             />
             <input
               type="text"
+              class={todo.done ? "done" : ""}
               value={todo.title}
               onChange={(e) => setTodos(i(), "title", e.currentTarget.value)}
             />
-            <button onClick={() => setTodos((t) => removeIndex(t, i()))}>
+            <button
+              class="delete-btn"
+              onClick={() => setTodos((t) => removeIndex(t, i()))}
+            >
               x
             </button>
           </div>

@@ -1,10 +1,3 @@
-.logo.vite:hover {
-  filter: drop-shadow(0 0 2em #747bff);
-}
-
-.logo.solid:hover {
-  filter: drop-shadow(0 0 2em #2f5d90);
-}
 :root {
   font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
   font-size: 16px;
@@ -14,7 +7,7 @@
   color: #0f0f0f;
   background-color: #f6f6f6;
 
-  font-synthesis: none;
+  font-synthesis: none; 
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -22,38 +15,14 @@
 }
 
 .container {
-  margin: 0;
+  margin: 0 auto;
   padding-top: 10vh;
+  max-width: 400px;
+  padding: 10vh 20px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   text-align: center;
-}
-
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: 0.75s;
-}
-
-.logo.tauri:hover {
-  filter: drop-shadow(0 0 2em #24c8db);
-}
-
-.row {
-  display: flex;
-  justify-content: center;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-
-a:hover {
-  color: #535bf2;
 }
 
 h1 {
@@ -74,25 +43,44 @@ button {
   box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
 }
 
-button {
+form {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+form input {
+  flex: 1
+}
+
+.input:hover {
+  background: #ffffff10;
+  border-color: #eee;
+}
+
+.todo-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.todo-item input[type="text"] {
+  flex: 1;
+  text-align: left;
+  border: 1-x solid transparent;
+}
+
+.todo-item:hover input[type="text"] {
+  background: #ffffff10;
+  border-color: #eee;
+}
+
+input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
   cursor: pointer;
-}
-
-button:hover {
-  border-color: #396cd8;
-}
-button:active {
-  border-color: #396cd8;
-  background-color: #e8e8e8;
-}
-
-input,
-button {
-  outline: none;
-}
-
-#greet-input {
-  margin-right: 5px;
+  box-shadow: none;
 }
 
 @media (prefers-color-scheme: dark) {
