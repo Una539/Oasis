@@ -4,14 +4,22 @@
   line-height: 24px;
   font-weight: 400;
 
-  color: #0f0f0f;
-  background-color: #f6f6f6;
+  color: var(--text);
+  background-color: var(--bg);
 
   font-synthesis: none; 
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
+
+  --bg: #f5f5f4;
+  --surface: #ffffff;
+  --surface-hover: #fafaf9;
+  --border: #e7e5e4;
+  --text: #292524;
+  --text-secondary: #78716c;
+  --text-muted: #a9a29e;
 }
 
 .container {
@@ -19,6 +27,7 @@
   padding-top: 10vh;
   max-width: 400px;
   padding: 10vh 20px;
+  gap: 10px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -29,76 +38,261 @@ h1 {
   text-align: center;
 }
 
-input,
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  color: #0f0f0f;
-  background-color: #ffffff;
-  transition: border-color 0.25s;
-  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
-}
-
 form {
   display: flex;
-  gap: 8px;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  border-radius: 12px;
+  overflow: hidden;
 }
 
-form input {
-  flex: 1
+.input {
+ flex: 1;
+ font-size: 15px;
+ padding: 12px 16px;
+ border: 1px solid var(--border);
+ border-right: none;
+ border-radius: 12px 0 0 12px;
+ background-color: var(--surface);
+ color: var(--text);
+ outline: none;
+ transition: background-color 0.2s ease;
 }
+
+.input::placeholder {
+  color: var(--text-muted)
+}
+
+.input:focus {
+  background-color: var(--surface);
+}
+
 
 .input:hover {
-  background: #ffffff10;
-  border-color: #eee;
+  background: #fafafa;
+}
+
+.input-btn {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--text);
+  color: var(--bg);
+  border: none;
+  border-radius: 0 12px 12px 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.input-btn:hover {
+  background-color: #44403c;
+}
+
+.input-btn:active {
+  transform: scale(0.96);
+}
+
+.todo-item-wrapper {
+  position: relative;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.delete-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 24px;
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  border-radius: 10px;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .todo-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
+  background: var(--surface);
+  border-radius: 10px;
+  border: 1px solid transparent;
+  box-shadow: inset 0 0 0 1px transparent;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.swipe-track {
+  touch-action: pan-y;
+}
+
+.swipe-track.snapping-back {
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.swipe-track.slide-out {
+  transition: transform 0.25s ease-in;
+}
+
+.swipe-track.deleting {
+  transition: transform 0.15s ease-in, opacity 0.15s ease-in;
+  opacity: 0;
+}
+
+.todo-item:hover {
+  border-color: var(--border);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
 }
 
 .todo-item input[type="text"] {
   flex: 1;
   text-align: left;
-  border: 1-x solid transparent;
+  border: none;
+  min-height: 48px;
+  font-size: 15px;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  transition: color 0.2s ease;
 }
 
-.todo-item:hover input[type="text"] {
-  background: #ffffff10;
-  border-color: #eee;
+.todo-item input[type="text"].done {
+  text-decoration: line-through;
+  color: var(--text-muted);
 }
-
-input[type="checkbox"] {
+.todo-item input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
   width: 18px;
   height: 18px;
+  margin: 0 14px;
   cursor: pointer;
-  box-shadow: none;
+  border: 1.5px solid var(--text-muted);
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  position: relative;
+  flex-shrink: 0;
 }
+
+.todo-item input[type="checkbox"]:hover {
+  border-color: var(--text-secondary);
+}
+
+.todo-item input[type="checkbox"]:checked {
+  background-color: var(--text);
+  border-color: var(--text);
+}
+
+.todo-item input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 1px;
+  width: 4px;
+  height: 9px;
+  border: solid var(--bg);
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+
+.delete-btn {
+  width: 45px;
+  height: auto;
+  align-self: stretch;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.2s ease;
+
+  margin: 0;
+  border-radius: 0 10px 10px 0;
+  color: var(--text-muted);
+}
+
+.delete-btn:hover {
+  background-color: #f5f5f4;
+  color: var(--text);
+}
+
+.delete-btn:active {
+  transform: scale(0.92);
+}
+
 
 @media (prefers-color-scheme: dark) {
   :root {
-    color: #f6f6f6;
-    background-color: #2f2f2f;
+    --bg: #1c1917;
+    --surface: #292524;
+    --surface-hover: #33302e;
+    --border: #44403c;
+    --text: #f5f5f4;
+    --text-secondary: #a8a29e;
+    --text-muted: #78716c;
   }
 
-  a:hover {
-    color: #24c8db;
+  .input {
+    background-color: var(--surface);
+    border-color: var(--border);
   }
+  .input-btn {
+    background-color: var(--surface-hover);
+    color: var(--text);
+  }
+  .input-btn:hover {
+    background-color: #57534e;
+  }
+  .todo-item {
+    background: var(--surface);
+  }
+  .todo-item:hover {
+    border-color: #57534e;
+  }
+  
+  .delete-btn:hover {
+    background-color: #44403c;
+  }
+}
 
-  input,
-  button {
-    color: #ffffff;
-    background-color: #0f0f0f98;
+/* ============================================
+   桌面端：鼠标操作，直接显示删除按钮
+   ============================================ */
+@media (hover: hover) and (pointer: fine) {
+  .delete-hint {
+    display: none;
   }
-  button:active {
-    background-color: #0f0f0f69;
+  .delete-btn {
+    display: flex;
+    color: var(--text-muted);
+  }
+  /* 可选：桌面端不需要透明边框占位，但留着也无害，
+     因为红色背景已经隐藏了。如果你想修复那个 1px 缝隙感，
+     可以改成实色边框 */
+  .todo-item {
+    border: 1px solid var(--surface);
+  }
+}
+/* ============================================
+   移动端：触摸操作，启用滑动删除
+   ============================================ */
+@media (hover: none) and (pointer: coarse) {
+  .delete-btn {
+    display: none;
+  }
+  .swipe-track {
+    touch-action: pan-y;
   }
 }
