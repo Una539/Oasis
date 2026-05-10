@@ -42,3 +42,11 @@ To expose a new Rust command to the frontend:
 1. Add the function in `src-tauri/src/store.rs` (or a new module).
 2. Register it in `src-tauri/src/lib.rs` inside `tauri::generate_handler![...]`.
 3. Call it from the frontend via `invoke("command_name", { args })` from `@tauri-apps/api/core`.
+
+## License
+
+This project is licensed under the **GNU General Public License v3.0 or later** (GPL-3.0-or-later).
+Copyright (C) 2026 Uno.
+
+All source files must retain the GPL license header. When adding new source files, copy the standard header from an existing file and update the description line as appropriate.
+See the [LICENSE](../LICENSE) file for the full license text.
