@@ -10,15 +10,13 @@
 [![SolidJS](https://img.shields.io/badge/SolidJS-1.9.3-2C4F7C?style=for-the-badge&logo=solid&logoColor=white)](https://www.solidjs.com/)
 [![Rust](https://img.shields.io/badge/Rust-2021-000000?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 
-[![Windows](https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)]()
-[![macOS](https://img.shields.io/badge/macOS-000000?style=for-the-badge&logo=apple&logoColor=white)]()
-[![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)]()
-[![Android](https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)]()
+<br/>
 
-</div>
-一款轻量、简洁的跨平台待办事项（Todo List）桌面应用，基于 **Tauri v2** + **SolidJS** + **Rust** 构建。
+一款轻量、简洁的跨平台待办事项（Todo List）桌面应用，基于 *Tauri v2* + *SolidJS* + *Rust* 构建。
 
 > Oasis Flow 致力于提供流畅的待办管理体验，无论是在桌面端还是移动端，都能轻松记录和追踪你的日常任务。
+
+</div>
 
 ## 功能特性
 
