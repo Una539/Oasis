@@ -10,7 +10,7 @@
     "serve": "vite preview",
     "tauri": "tauri"
   },
-  "packageManager": "pnpm@9.15.0",
+  "packageManager": "pnpm@11.0.9",
   "license": "GPL-3.0-or-later",
   "dependencies": {
     "@tauri-apps/api": "^2",
