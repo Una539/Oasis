@@ -21,13 +21,6 @@
 
 > Oasis Flow 致力于提供流畅的待办管理体验，无论是在桌面端还是移动端，都能轻松记录和追踪你的日常任务。
 
-<br/>
-
-[![GitHub Stats](https://github-readme-stats.vercel.app/api?username=Una539&show_icons=true&theme=default&hide_border=true&locale=cn)](https://github.com/Una539)
-[![Top Languages](https://github-readme-stats.vercel.app/api/top-langs/?username=Una539&layout=compact&theme=default&hide_border=true&locale=cn)](https://github.com/Una539)
-
-</div>
-
 ## 功能特性
 
 - **待办管理**：快速添加、编辑、完成和删除待办事项
@@ -154,15 +147,15 @@ pnpm tauri android build
 
 ## 常用命令
 
-| 命令                        | 说明                                         |
-| --------------------------- | -------------------------------------------- |
-| `pnpm dev`                  | 仅启动前端 Vite 开发服务器（端口 1420）      |
-| `pnpm tauri dev`            | 启动桌面端开发环境（前端 + Tauri 窗口）      |
-| `pnpm tauri android dev`    | 启动 Android 开发环境（连接设备或模拟器）    |
-| `pnpm build`                | 构建前端生产版本                             |
-| `pnpm tauri build`          | 构建桌面应用安装包                           |
-| `pnpm tauri android build`  | 构建 Android 应用（需配置签名）              |
-| `pnpm tauri`                | 查看 Tauri CLI 所有可用命令                  |
+| 命令                       | 说明                                      |
+| -------------------------- | ----------------------------------------- |
+| `pnpm dev`                 | 仅启动前端 Vite 开发服务器（端口 1420）   |
+| `pnpm tauri dev`           | 启动桌面端开发环境（前端 + Tauri 窗口）   |
+| `pnpm tauri android dev`   | 启动 Android 开发环境（连接设备或模拟器） |
+| `pnpm build`               | 构建前端生产版本                          |
+| `pnpm tauri build`         | 构建桌面应用安装包                        |
+| `pnpm tauri android build` | 构建 Android 应用（需配置签名）           |
+| `pnpm tauri`               | 查看 Tauri CLI 所有可用命令               |
 
 ## 项目结构
 
