@@ -13,22 +13,26 @@ export function createTauriStore<T extends object>(
   init: T,
 ): [Store<T>, SetStoreFunction<T>] {
   const [state, setState] = createStore<T>(init);
+  let isLoading = true;
 
   // 在第一次打开应用时从 Rust 获取数据
   onMount(async () => {
     try {
-      const SavedData = await invoke<T>("load_todos");
-      if (SavedData) {
+      const savedData = await invoke<T>("load_todos");
+      if (savedData) {
         // 用从 Rust 获取的数据替换默认的空白数据
-        setState(SavedData);
+        setState(savedData);
       }
     } catch (e) {
       console.error("无法从 Rust 中加载数据：", e);
+    } finally {
+      isLoading = false;
     }
   });
 
   // 使用副作用，使每次更新 Todo 都会触发save_todos
   createEffect(() => {
+    if (isLoading) return;
     invoke("save_todos", { data: state }).catch((err) => {
       console.error("保存至 Rust 失败：", err);
     });

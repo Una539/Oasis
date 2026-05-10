@@ -9,13 +9,14 @@ pub struct Todo {
     pub done: bool,
 }
 
-pub fn get_storage_path(app: &AppHandle) -> std::path::PathBuf {
-    app.path().app_data_dir().unwrap().join("todos.json")
+pub fn get_storage_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
+    let dir = app.path().app_data_dir().map_err(|e| format!("无法获取数据目录: {}", e))?;
+    Ok(dir.join("todos.json"))
 }
 
 #[tauri::command]
 pub async fn save_todos(app: AppHandle, data: Vec<Todo>) -> Result<(), String> {
-    let path = get_storage_path(&app);
+    let path = get_storage_path(&app)?;
 
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
@@ -27,7 +28,7 @@ pub async fn save_todos(app: AppHandle, data: Vec<Todo>) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn load_todos(app: AppHandle) -> Result<Vec<Todo>, String> {
-    let path = get_storage_path(&app);
+    let path = get_storage_path(&app)?;
     if !path.exists() {
         return Ok(vec![]);
     }

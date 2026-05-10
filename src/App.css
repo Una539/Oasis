@@ -22,28 +22,50 @@
   --text-muted: #a9a29e;
 }
 
+html, body {
+  overflow: hidden;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  touch-action: pan-x;
+}
+
+#root {
+  height: 100%;
+}
+
 .container {
   margin: 0 auto;
-  padding-top: 10vh;
   max-width: 400px;
-  padding: 10vh 20px;
+
+  padding-left: 20px;
+  padding-right: 20px;
+
+  padding-top: calc(20px + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+
+  height: 100%;
+  box-sizing: border-box;
   gap: 10px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   text-align: center;
 }
 
 h1 {
   text-align: center;
+  flex-shrink: 0;
 }
 
 form {
   display: flex;
-  margin-bottom: 24px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   border-radius: 12px;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .input {
@@ -92,6 +114,14 @@ form {
 
 .input-btn:active {
   transform: scale(0.96);
+}
+
+.todo-list {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+  padding-bottom: 20px;
 }
 
 .todo-item-wrapper {
