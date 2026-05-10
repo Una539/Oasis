@@ -15,8 +15,7 @@
 [![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)]()
 [![Android](https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)]()
 
-<br/>
-
+</div>
 一款轻量、简洁的跨平台待办事项（Todo List）桌面应用，基于 **Tauri v2** + **SolidJS** + **Rust** 构建。
 
 > Oasis Flow 致力于提供流畅的待办管理体验，无论是在桌面端还是移动端，都能轻松记录和追踪你的日常任务。
