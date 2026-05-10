@@ -31,5 +31,13 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDUwNEZFNDIyM0Y5REFENzgKUldSNHJaMC9JdVJQVVBHN1hnNEtXeHhha1NxRlB1Y3lEUVd4alZNamdUdUhjUVRVTnFibUQzU0UK",
+      "endpoints": [
+        "https://github.com/Una539/Oasis/releases/latest/download/latest.json"
+      ]
+    }
   }
 }
