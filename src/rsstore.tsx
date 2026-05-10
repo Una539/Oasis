@@ -2,6 +2,11 @@ import { createEffect, onMount } from "solid-js";
 import { createStore, type SetStoreFunction, type Store } from "solid-js/store";
 import { invoke } from "@tauri-apps/api/core";
 
+export interface Todo {
+  content: string;
+  done: boolean;
+}
+
 export function createTauriStore<T extends object>(
   init: T,
 ): [Store<T>, SetStoreFunction<T>] {
@@ -9,10 +14,9 @@ export function createTauriStore<T extends object>(
 
   onMount(async () => {
     try {
-      const SavedData = await invoke<string>("load_todos");
+      const SavedData = await invoke<T>("load_todos");
       if (SavedData) {
-        const prased = JSON.parse(SavedData);
-        setState(prased);
+        setState(SavedData);
       }
     } catch (e) {
       console.error("无法从 Rust 中加载数据：", e);
@@ -20,9 +24,7 @@ export function createTauriStore<T extends object>(
   });
 
   createEffect(() => {
-    const data = JSON.stringify(state);
-
-    invoke("save_todos", { data }).catch((err) => {
+    invoke("save_todos", { data: state }).catch((err) => {
       console.error("保存至 Rust 失败：", err);
     });
   });

@@ -1,21 +1,19 @@
 import { createSignal, batch, For } from "solid-js";
-import { createTauriStore, removeIndex } from "./utils";
+import { createTauriStore, removeIndex, Todo } from "./rsstore";
 import "./App.css";
 
-type TodoItem = { title: string; done: boolean };
-
 function App() {
-  const [newTitle, setTitle] = createSignal("");
-  const [todos, setTodos] = createTauriStore<TodoItem[]>([]);
+  const [newContent, setContent] = createSignal("");
+  const [todos, setTodos] = createTauriStore<Todo[]>([]);
 
   const addTodo = (e: SubmitEvent) => {
     e.preventDefault();
     batch(() => {
       setTodos(todos.length, {
-        title: newTitle(),
+        content: newContent(),
         done: false,
       });
-      setTitle("");
+      setContent("");
     });
   };
 
@@ -28,8 +26,8 @@ function App() {
           placeholder="enter todo and click +"
           class="input"
           required
-          value={newTitle()}
-          onInput={(e) => setTitle(e.currentTarget.value)}
+          value={newContent()}
+          onInput={(e) => setContent(e.currentTarget.value)}
         />
         <button>+</button>
       </form>
@@ -45,8 +43,8 @@ function App() {
             <input
               type="text"
               class={todo.done ? "done" : ""}
-              value={todo.title}
-              onChange={(e) => setTodos(i(), "title", e.currentTarget.value)}
+              value={todo.content}
+              onChange={(e) => setTodos(i(), "content", e.currentTarget.value)}
             />
             <button
               class="delete-btn"
