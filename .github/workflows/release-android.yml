@@ -49,8 +49,8 @@ jobs:
 
       - name: Decode keystore
         run: |
-          mkdir -p src-tauri/gen/android
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > src-tauri/gen/android/my-release-key.jks
+          mkdir -p src-tauri/gen/android/app
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > src-tauri/gen/android/app/my-release-key.jks
 
       - name: Create keystore.properties
         run: |
