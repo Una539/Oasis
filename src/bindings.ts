@@ -13,10 +13,10 @@ export const commands = {
 
 /* Types */
 export type Todo = {
-	id?: string,
+	id: string,
 	content: string,
 	done: boolean,
-	due_date?: string | null,
+	due_date: string | null,
 };
 
 /* Tauri Specta runtime */

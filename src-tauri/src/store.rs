@@ -35,11 +35,9 @@ fn generate_id() -> String {
 
 #[derive(Debug, Serialize, Deserialize, Type)]
 pub struct Todo {
-    #[serde(default)]
     pub id: String,
     pub content: String,
     pub done: bool,
-    #[serde(default)]
     pub due_date: Option<String>,
 }
 
