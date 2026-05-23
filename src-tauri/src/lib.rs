@@ -18,6 +18,7 @@
 mod store;
 
 use std::env;
+use tauri_specta::{collect_commands, Builder};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -26,12 +27,45 @@ pub fn run() {
         println!("Linux detected: set WEBKIT_DISABLE_DMABUF_RENDERER=1");
     }
 
+    let builder = Builder::new().commands(collect_commands![
+        store::load_todos,
+        store::add_todo,
+        store::delete_todo,
+        store::toggle_todo,
+        store::update_todo_content,
+    ]);
+
+    #[cfg(debug_assertions)]
+    {
+        use specta_typescript::Typescript;
+        builder
+            .export(Typescript::default(), "../../src/bindings.ts")
+            .expect("Failed to export TypeScript bindings");
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![
-            store::save_todos,
-            store::load_todos
-        ])
+        .invoke_handler(builder.invoke_handler())
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use specta_typescript::Typescript;
+    use tauri_specta::{collect_commands, Builder};
+
+    #[test]
+    fn export_typescript_bindings() {
+        let builder = Builder::new().commands(collect_commands![
+            super::store::add_todo,
+            super::store::delete_todo,
+            super::store::toggle_todo,
+            super::store::update_todo_content,
+            super::store::load_todos,
+        ]);
+        builder
+            .export(Typescript::default(), "../src/bindings.ts")
+            .expect("Failed to export TypeScript bindings");
+    }
 }
