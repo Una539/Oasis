@@ -25,8 +25,6 @@ export function createTauriStore<T extends object>(
   init: T,
 ): [Store<T>, SetStoreFunction<T>] {
   const [state, setState] = createStore<T>(init);
-  let isLoading = true;
-
   // 在第一次打开应用时从 Rust 获取数据
   onMount(async () => {
     try {
@@ -39,8 +37,6 @@ export function createTauriStore<T extends object>(
       }
     } catch (e) {
       console.error("无法从 Rust 中加载数据：", e);
-    } finally {
-      isLoading = false;
     }
   });
 

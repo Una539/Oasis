@@ -1,0 +1,208 @@
+/*
+ * Oasis - A simple Todo List app built with Tauri, SolidJS and Rust.
+ * Copyright (C) 2026 Uno
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+/* ===== CSS Variables ===== */
+:root {
+  --bg: #f5f5f4;
+  --surface: #ffffff;
+  --surface-hover: #fafaf9;
+  --border: #e7e5e4;
+  --text: #292524;
+  --text-secondary: #78716c;
+  --text-muted: #a9a29e;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1917;
+    --surface: #292524;
+    --surface-hover: #33302e;
+    --border: #44403c;
+    --text: #f5f5f4;
+    --text-secondary: #a8a29e;
+    --text-muted: #78716c;
+  }
+}
+
+/* ===== Global ===== */
+html,
+body {
+  overflow: hidden;
+  height: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  touch-action: pan-x;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  height: 100%;
+}
+
+/* ===== Shared Checkbox ===== */
+.todo-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  margin: 0 14px;
+  cursor: pointer;
+  border: 1.5px solid var(--text-muted);
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.todo-checkbox:hover {
+  border-color: var(--text-secondary);
+}
+
+.todo-checkbox:checked {
+  background-color: var(--text);
+  border-color: var(--text);
+}
+
+.todo-checkbox:checked::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 1px;
+  width: 4px;
+  height: 9px;
+  border: solid var(--bg);
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+
+/* ===== Shared Todo Text Input ===== */
+.todo-text-input {
+  flex: 1;
+  text-align: left;
+  border: none;
+  min-height: 48px;
+  font-size: 15px;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  transition: color 0.2s ease;
+}
+
+.todo-text-input.done {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .todo-text-input {
+    min-height: 52px;
+    font-size: 16px;
+  }
+}
+
+/* ===== Swipe Animations ===== */
+.swipe-track.snapping-back {
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.swipe-track.slide-out {
+  transition: transform 0.25s ease-in;
+}
+
+.swipe-track.deleting {
+  transition: transform 0.15s ease-in, opacity 0.15s ease-in;
+  opacity: 0;
+}
+
+/* ===== Device-specific radius for shared components ===== */
+.todo-input-row,
+.date-picker-field,
+.inline-date-picker,
+.mobile-todo-wrapper {
+  border-radius: 10px;
+}
+
+.todo-input-row:focus-within {
+  border-color: var(--text-secondary);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.06);
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .todo-input-row,
+  .date-picker-field,
+  .inline-date-picker,
+  .mobile-todo-wrapper {
+    border-radius: 16px;
+  }
+
+  .todo-input-row:focus-within {
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.06);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .todo-input-row:focus-within {
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08);
+  }
+}
+
+/* ===== Mobile Delete Background ===== */
+.delete-bg {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+/* ===== Inline Date Picker Animations ===== */
+.inline-date-picker-wrapper {
+  animation: datepicker-slide-in 0.2s ease-out;
+}
+
+.inline-date-picker-wrapper.closing {
+  animation: datepicker-slide-out 0.2s ease-in forwards;
+}
+
+@keyframes datepicker-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes datepicker-slide-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+/* ===== Dark Mode Tweaks ===== */
+@media (prefers-color-scheme: dark) {
+  .inline-date-picker {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  }
+}

@@ -35,7 +35,7 @@ pub fn run() {
         store::update_todo_content,
     ]);
 
-    #[cfg(debug_assertions)]
+    #[cfg(all(debug_assertions, not(target_os = "android")))]
     {
         use specta_typescript::Typescript;
         builder

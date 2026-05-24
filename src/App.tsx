@@ -14,71 +14,36 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { For } from "solid-js";
-import { createTauriStore, Todo } from "./rsstore";
-import "./App.css";
-import { commands } from "./bindings";
-import TodoInput from "./components/TodoInput";
-import TodoItem from "./components/TodoItem";
+import { useDeviceDetect } from "./hooks/useDeviceDetect";
+import { useTodos } from "./hooks/useTodos";
+import MobileApp from "./components/MobileApp";
+import DesktopApp from "./components/DesktopApp";
 
 function App() {
-  const [todos, setTodos] = createTauriStore<Todo[]>([]);
-
-  const handleAdd = async (content: string, dueDate: string | null) => {
-    const result = await commands.addTodo(content, dueDate);
-    if (result.status === "ok") {
-      setTodos(result.data);
-      return true;
-    } else {
-      console.error("添加失败：", result.error);
-      return false;
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    const result = await commands.deleteTodo(id);
-    if (result.status === "ok") {
-      setTodos(result.data);
-    } else {
-      console.error("删除失败：", result.error);
-    }
-  };
-
-  const handleToggle = async (id: string) => {
-    const result = await commands.toggleTodo(id);
-    if (result.status === "ok") {
-      setTodos(result.data);
-    } else {
-      console.error("切换状态失败：", result.error);
-    }
-  };
-
-  const handleUpdate = async (id: string, content: string) => {
-    const result = await commands.updateTodoContent(id, content);
-    if (result.status === "ok") {
-      setTodos(result.data);
-    } else {
-      console.error("更新内容失败：", result.error);
-    }
-  };
+  const deviceType = useDeviceDetect();
+  const { todos, handleAdd, handleDelete, handleToggle, handleUpdate } =
+    useTodos();
 
   return (
-    <main class="container">
-      <h1>Simple Todos</h1>
-      <TodoInput onAdd={handleAdd} />
-      <div class="todo-list">
-        <For each={todos}>
-          {(todo) => (
-            <TodoItem
-              todo={todo}
-              onToggle={handleToggle}
-              onDelete={handleDelete}
-              onUpdate={handleUpdate}
-            />
-          )}
-        </For>
-      </div>
-    </main>
+    <>
+      {deviceType() === "mobile" ? (
+        <MobileApp
+          todos={todos}
+          handleAdd={handleAdd}
+          handleDelete={handleDelete}
+          handleToggle={handleToggle}
+          handleUpdate={handleUpdate}
+        />
+      ) : (
+        <DesktopApp
+          todos={todos}
+          handleAdd={handleAdd}
+          handleDelete={handleDelete}
+          handleToggle={handleToggle}
+          handleUpdate={handleUpdate}
+        />
+      )}
+    </>
   );
 }
 

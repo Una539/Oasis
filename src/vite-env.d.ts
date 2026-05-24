@@ -15,3 +15,13 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 /// <reference types="vite/client" />
+
+import type { AttributifyAttributes } from "@unocss/preset-attributify";
+
+declare module "solid-js" {
+  namespace JSX {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    interface HTMLAttributes<T> extends AttributifyAttributes {}
+  }
+}
+

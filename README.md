@@ -3,7 +3,7 @@
 <div align="center">
 
 [![License](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg?style=for-the-badge)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.2.0-green.svg?style=for-the-badge)](package.json)
+[![Version](https://img.shields.io/badge/version-0.3.0-green.svg?style=for-the-badge)](package.json)
 [![Stars](https://img.shields.io/github/stars/Una539/Oasis?style=for-the-badge&logo=github&color=yellow)](https://github.com/Una539/Oasis/stargazers)
 
 [![Tauri](https://img.shields.io/badge/Tauri-v2-24C8DB?style=for-the-badge&logo=tauri&logoColor=white)](https://tauri.app/)
@@ -21,7 +21,7 @@
 ## 功能特性
 
 - **待办管理**：快速添加、编辑、完成和删除待办事项
-- **截止日期**：支持为待办事项设置截止日期
+- **截止日期**：支持为待办事项设置截止日期，内置日历选择器
 - **数据持久化**：所有数据通过 Rust 后端自动保存到本地文件，关闭应用后数据不丢失
 - **跨平台支持**：基于 Tauri 构建，支持 Windows、macOS、Linux 和 Android
 - **响应式交互**：
@@ -30,17 +30,20 @@
 - **暗黑模式**：自动跟随系统主题切换，支持浅色/深色模式
 - **安全区域适配**：自动适配刘海屏等安全区域，确保内容不被遮挡
 - **类型安全**：通过 Tauri Specta 自动生成 TypeScript 绑定，前后端类型保持一致
+- **组件化 UI**：基于 Ark UI 提供无障碍、可组合的交互组件
 
 ## 技术栈
 
-| 层级     | 技术                                                             |
-| -------- | ---------------------------------------------------------------- |
-| 前端框架 | [SolidJS](https://www.solidjs.com/) — 响应式、高性能的 UI 框架   |
-| 构建工具 | [Vite](https://vitejs.dev/) — 下一代前端构建工具                 |
-| 后端框架 | [Tauri v2](https://tauri.app/) — 使用 Web 技术构建跨平台桌面应用 |
-| 后端语言 | [Rust](https://www.rust-lang.org/) — 安全、高性能的系统编程语言  |
-| 包管理器 | [pnpm](https://pnpm.io/) — 快速、节省磁盘空间的包管理器          |
-| 图标库   | [Lucide Solid](https://lucide.dev/) — 精美、一致的图标集合       |
+| 层级       | 技术                                                                 |
+| ---------- | -------------------------------------------------------------------- |
+| 前端框架   | [SolidJS](https://www.solidjs.com/) — 响应式、高性能的 UI 框架       |
+| 构建工具   | [Vite](https://vitejs.dev/) — 下一代前端构建工具                     |
+| 后端框架   | [Tauri v2](https://tauri.app/) — 使用 Web 技术构建跨平台桌面应用     |
+| 后端语言   | [Rust](https://www.rust-lang.org/) — 安全、高性能的系统编程语言      |
+| 包管理器   | [pnpm](https://pnpm.io/) — 快速、节省磁盘空间的包管理器              |
+| 图标库     | [Lucide Solid](https://lucide.dev/) — 精美、一致的图标集合           |
+| UI 组件库  | [Ark UI](https://ark-ui.com/) — 基于 Zag.js 的无障碍 Headless 组件库 |
+| CSS 工具   | [UnoCSS](https://unocss.dev/) — 即时原子化 CSS 引擎                 |
 
 ## 环境要求
 
@@ -164,13 +167,19 @@ Oasis/
 │   ├── rsstore.tsx           # 自定义 Store，封装 Tauri 数据持久化
 │   ├── bindings.ts           # Tauri Specta 自动生成的类型绑定
 │   ├── index.tsx             # 应用入口文件
-│   ├── App.css               # 全局样式，包含主题变量和响应式布局
+│   ├── vite-env.d.ts         # Vite 类型声明
 │   ├── components/           # 可复用组件
 │   │   ├── TodoInput.tsx     # 待办输入组件（支持截止日期选择）
-│   │   ├── TodoInput.css     # TodoInput 样式
-│   │   ├── TodoItem.tsx      # 待办项组件（支持滑动删除）
-│   │   └── TodoItem.css      # TodoItem 样式
-│   ├── vite-env.d.ts         # Vite 类型声明
+│   │   ├── DesktopApp.tsx    # 桌面端应用布局
+│   │   ├── DesktopTodoItem.tsx # 桌面端待办项（悬停删除）
+│   │   ├── MobileApp.tsx     # 移动端应用布局
+│   │   ├── MobileTodoItem.tsx  # 移动端待办项（滑动删除）
+│   │   └── InlineDatePicker.tsx # 内联日历选择器
+│   ├── hooks/                # 自定义 Hooks
+│   │   ├── useTodos.ts       # Todo 业务逻辑
+│   │   └── useDeviceDetect.ts # 设备类型检测
+│   ├── styles/               # 全局样式
+│   │   └── main.css          # 主题变量、共享组件样式、动画
 │   └── assets/               # 静态资源
 ├── src-tauri/                # Tauri 后端（Rust）
 │   ├── src/
@@ -183,8 +192,10 @@ Oasis/
 ├── package.json              # Node.js 项目配置
 ├── vite.config.ts            # Vite 构建配置
 ├── tsconfig.json             # TypeScript 配置
+├── uno.config.ts             # UnoCSS 配置
 ├── LICENSE                   # GPLv3 许可证全文
 ├── README.md                 # 本文件
+├── ROADMAP.md                # 开发路线图
 └── AGENTS.md                 # AI Agent 开发指南
 ```
 

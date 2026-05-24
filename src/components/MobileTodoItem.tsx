@@ -15,9 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import { createSignal, createMemo, onCleanup } from "solid-js";
-import { X } from "lucide-solid";
-import { type Todo } from "../rsstore";
-import "./TodoItem.css";
+import { type Todo } from "../hooks/useTodos";
 
 const DELETE_THRESHOLD = 120;
 
@@ -31,10 +29,6 @@ interface SwipeResult {
   onTouchEnd: () => void;
 }
 
-/**
- * 封装滑动删除手势逻辑。
- * 返回 offset signal、trackClass memo、以及三个触摸事件处理器。
- */
 function createSwipeToDelete(onDelete: () => void): SwipeResult {
   const [offset, setOffset] = createSignal(0);
   const [swipeState, setSwipeState] = createSignal<SwipeState>("idle");
@@ -99,7 +93,7 @@ function createSwipeToDelete(onDelete: () => void): SwipeResult {
 
   const trackClass = createMemo(() => {
     const state = swipeState();
-    let cls = "todo-item swipe-track";
+    let cls = "swipe-track flex items-center bg-surface rounded-mobile border border-solid border-surface relative z-1";
     if (state === "snapping") cls += " snapping-back";
     if (state === "slide-out") cls += " slide-out";
     if (state === "deleting") cls += " deleting";
@@ -115,50 +109,59 @@ function createSwipeToDelete(onDelete: () => void): SwipeResult {
   };
 }
 
-interface TodoItemProps {
+interface MobileTodoItemProps {
   todo: Todo;
   onToggle: (id: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onUpdate: (id: string, content: string) => Promise<void>;
 }
 
-export default function TodoItem(props: TodoItemProps) {
+export default function MobileTodoItem(props: MobileTodoItemProps) {
   const { offset, trackClass, onTouchStart, onTouchMove, onTouchEnd } =
     createSwipeToDelete(() => props.onDelete(props.todo.id));
 
   return (
-    <div class="todo-item-wrapper">
-      <div class="delete-hint">删除</div>
+    <div relative mb="2.5" rounded-mobile overflow-hidden>
+      {/* Red delete background */}
+      <div
+        class="delete-bg absolute inset-0 flex items-center justify-end pr-6 text-white text-[15px] font-semibold tracking-wider rounded-mobile pointer-events-none select-none"
+      >
+        删除
+      </div>
+
+      {/* Swipeable track */}
       <div
         class={trackClass()}
-        style={{ transform: `translateX(${offset()}px)` }}
+        style={{ transform: `translateX(${offset()}px)`, "touch-action": "pan-y" }}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
       >
         <input
           type="checkbox"
+          class="todo-checkbox"
           checked={props.todo.done}
           onChange={() => props.onToggle(props.todo.id)}
         />
         <input
           type="text"
-          class={props.todo.done ? "done" : ""}
+          class={`todo-text-input ${props.todo.done ? "done" : ""}`}
           value={props.todo.content}
           onChange={(e) =>
             props.onUpdate(props.todo.id, e.currentTarget.value)
           }
         />
         {props.todo.due_date && (
-          <span class="due-date">{props.todo.due_date}</span>
+          <span
+            text="[12px]"
+            color-text-secondary
+            mr-3
+            whitespace-nowrap
+            flex-shrink-0
+          >
+            {props.todo.due_date}
+          </span>
         )}
-        <button
-          class="delete-btn"
-          onClick={() => props.onDelete(props.todo.id)}
-          aria-label="删除这个待办"
-        >
-          <X size={18} />
-        </button>
       </div>
     </div>
   );

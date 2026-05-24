@@ -14,10 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// TodoList 输入框
-import { createSignal } from "solid-js";
-import { Plus, Calendar } from "lucide-solid";
-import "./TodoInput.css";
+import { createSignal, Show } from "solid-js";
+import { Plus, Calendar, X } from "lucide-solid";
+import InlineDatePicker from "./InlineDatePicker";
+import { Popover } from "@ark-ui/solid";
+import { Portal } from "solid-js/web";
 
 interface TodoInputProps {
   onAdd: (content: string, dueDate: string | null) => Promise<boolean>;
@@ -26,7 +27,7 @@ interface TodoInputProps {
 export default function TodoInput(props: TodoInputProps) {
   const [newContent, setContent] = createSignal("");
   const [newDueDate, setNewDueDate] = createSignal("");
-  const [showDatePicker, setShowDatePicker] = createSignal(false);
+  const [open, setOpen] = createSignal(false);
 
   const addTodo = async (e: SubmitEvent) => {
     e.preventDefault();
@@ -39,41 +40,93 @@ export default function TodoInput(props: TodoInputProps) {
     if (success) {
       setContent("");
       setNewDueDate("");
-      setShowDatePicker(false);
+      setOpen(false);
     }
   };
 
+  const handleDateChange = (value: string) => {
+    setNewDueDate(value);
+    setOpen(false);
+  };
+
+  const handleDateClear = () => {
+    setNewDueDate("");
+  };
+
+  const isCalendarActive = () => !!(open() || newDueDate());
+
   return (
-    <form onSubmit={addTodo}>
-      <div class="input-row">
+    <form class="flex flex-col gap-2 flex-shrink-0" onSubmit={addTodo}>
+      {/* Input row */}
+      <div class="todo-input-row flex items-stretch bg-surface border border-border overflow-hidden transition-colors duration-200">
         <input
-          placeholder="enter todo and click +"
-          class="input"
-          required
+          type="text"
+          class="flex-1 border-none bg-transparent color-text text-[15px] px-4 py-3 outline-none min-h-12 placeholder:text-text-muted"
+          placeholder="添加新待办..."
           value={newContent()}
           onInput={(e) => setContent(e.currentTarget.value)}
         />
-        <button
-          type="button"
-          class="calendar-btn"
-          classList={{ active: showDatePicker() }}
-          onClick={() => setShowDatePicker(!showDatePicker())}
-          aria-label="选择截止日期"
+        <div class="w-px bg-border flex-shrink-0" />
+
+        <Popover.Root
+          open={open()}
+          onOpenChange={(e) => setOpen(e.open)}
+          positioning={{ placement: "bottom-start", gutter: 8 }}
         >
-          <Calendar size={20} />
-        </button>
-        <button class="input-btn" type="submit" aria-label="添加待办">
-          <Plus size={24} />
+          <Popover.Trigger
+            type="button"
+            class="flex items-center justify-center border-none bg-transparent cursor-pointer color-text-muted transition-all duration-150 flex-shrink-0 min-w-12 min-h-12 hover:color-text hover:bg-surface-hover active:scale-95"
+            classList={{ "color-text bg-surface-hover": isCalendarActive() }}
+            aria-label="选择截止日期"
+            title="选择截止日期"
+          >
+            <Calendar size={20} />
+          </Popover.Trigger>
+          <Portal>
+            <Popover.Positioner>
+              <Popover.Content class="inline-date-picker z-50 bg-surface border border-border p-2 flex flex-col gap-1 shadow-md">
+                <InlineDatePicker
+                  value={newDueDate()}
+                  onChange={handleDateChange}
+                  onClear={handleDateClear}
+                />
+              </Popover.Content>
+            </Popover.Positioner>
+          </Portal>
+        </Popover.Root>
+
+        <button
+          type="submit"
+          class="flex items-center justify-center border-none !bg-text cursor-pointer color-bg transition-all duration-150 flex-shrink-0 min-w-12 min-h-12 hover:bg-text-secondary active:scale-95"
+          aria-label="添加待办"
+          title="添加待办 (Enter)"
+        >
+          <Plus size={22} />
         </button>
       </div>
-      {showDatePicker() && (
-        <input
-          type="date"
-          class="date-picker"
-          value={newDueDate()}
-          onInput={(e) => setNewDueDate(e.currentTarget.value)}
-        />
-      )}
+
+      {/* Selected date chip */}
+      <Show when={newDueDate()}>
+        <div
+          class="date-picker-field flex items-center gap-2 px-4 py-2.5 bg-surface border border-border color-text text-[14px] cursor-pointer transition-colors duration-200 hover:border-text-secondary"
+          onClick={() => setOpen(true)}
+        >
+          <Calendar size={16} class="color-text-muted flex-shrink-0" />
+          <span class="flex-1 text-[14px] color-text">{newDueDate()}</span>
+          <button
+            type="button"
+            class="flex items-center justify-center border-none bg-transparent cursor-pointer color-text-muted p-1 rounded transition-all duration-150 hover:color-text hover:bg-surface-hover"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDateClear();
+            }}
+            aria-label="清除日期"
+            title="清除日期"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      </Show>
     </form>
   );
 }
