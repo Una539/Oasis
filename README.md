@@ -3,7 +3,7 @@
 <div align="center">
 
 [![License](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg?style=for-the-badge)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.1.0-green.svg?style=for-the-badge)](package.json)
+[![Version](https://img.shields.io/badge/version-0.2.0-green.svg?style=for-the-badge)](package.json)
 [![Stars](https://img.shields.io/github/stars/Una539/Oasis?style=for-the-badge&logo=github&color=yellow)](https://github.com/Una539/Oasis/stargazers)
 
 [![Tauri](https://img.shields.io/badge/Tauri-v2-24C8DB?style=for-the-badge&logo=tauri&logoColor=white)](https://tauri.app/)
@@ -21,14 +21,15 @@
 ## 功能特性
 
 - **待办管理**：快速添加、编辑、完成和删除待办事项
+- **截止日期**：支持为待办事项设置截止日期
 - **数据持久化**：所有数据通过 Rust 后端自动保存到本地文件，关闭应用后数据不丢失
-- **跨平台支持**：基于 Tauri 构建，支持 Windows、macOS 和 Linux
+- **跨平台支持**：基于 Tauri 构建，支持 Windows、macOS、Linux 和 Android
 - **响应式交互**：
   - **桌面端**：鼠标悬停显示删除按钮，点击即可删除
   - **移动端**：支持左滑删除手势，操作流畅自然
-- **自动保存**：每次修改（添加、编辑、完成、删除）都会自动触发保存，无需手动操作
 - **暗黑模式**：自动跟随系统主题切换，支持浅色/深色模式
 - **安全区域适配**：自动适配刘海屏等安全区域，确保内容不被遮挡
+- **类型安全**：通过 Tauri Specta 自动生成 TypeScript 绑定，前后端类型保持一致
 
 ## 技术栈
 
@@ -159,17 +160,23 @@ pnpm tauri android build
 ```
 Oasis/
 ├── src/                      # 前端源码（SolidJS + TypeScript）
-│   ├── App.tsx               # 主应用组件，包含 Todo 列表界面和交互逻辑
+│   ├── App.tsx               # 主应用组件
 │   ├── rsstore.tsx           # 自定义 Store，封装 Tauri 数据持久化
+│   ├── bindings.ts           # Tauri Specta 自动生成的类型绑定
 │   ├── index.tsx             # 应用入口文件
 │   ├── App.css               # 全局样式，包含主题变量和响应式布局
+│   ├── components/           # 可复用组件
+│   │   ├── TodoInput.tsx     # 待办输入组件（支持截止日期选择）
+│   │   ├── TodoInput.css     # TodoInput 样式
+│   │   ├── TodoItem.tsx      # 待办项组件（支持滑动删除）
+│   │   └── TodoItem.css      # TodoItem 样式
 │   ├── vite-env.d.ts         # Vite 类型声明
 │   └── assets/               # 静态资源
 ├── src-tauri/                # Tauri 后端（Rust）
 │   ├── src/
 │   │   ├── main.rs           # 应用入口
 │   │   ├── lib.rs            # Tauri 命令注册和初始化
-│   │   └── store.rs          # Rust 数据存储命令（save_todos / load_todos）
+│   │   └── store.rs          # Rust 数据存储命令（load_todos / add_todo / delete_todo / toggle_todo / update_todo_content）
 │   ├── Cargo.toml            # Rust 依赖配置
 │   ├── tauri.conf.json       # Tauri 应用配置
 │   └── icons/                # 应用图标
@@ -189,13 +196,13 @@ Oasis/
 - **macOS**: `~/Library/Application Support/com.oasis.app/todos.json`
 - **Linux**: `~/.local/share/com.oasis.app/todos.json`
 
-数据会在每次修改时自动保存，无需手动操作。
+所有数据操作（添加、删除、切换状态、更新内容）均由后端原子化处理并持久化，前端通过 Tauri Specta 生成的类型安全绑定与后端通信。
 
 ## 开发规范
 
 - TypeScript 启用 **严格模式**，且要求没有未使用的变量和参数
 - JSX 使用 `solid-js` 作为导入源
-- 添加新的 Rust 命令时，需在 `src-tauri/src/lib.rs` 的 `tauri::generate_handler![...]` 中注册
+- 添加新的 Rust 命令时，需在 `src-tauri/src/store.rs` 中定义，并在 `src-tauri/src/lib.rs` 的 `collect_commands![...]` 中注册
 - 所有源代码文件均保留 GPLv3 许可证头
 
 ## License
