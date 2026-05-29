@@ -16,8 +16,50 @@
 
 import { createTauriStore, Todo } from "../rsstore";
 import { commands } from "../bindings";
+import { createMemo } from "solid-js";
 
 export { type Todo };
+
+type PartitionKey = "today" | "upcoming" | "inbox" | "outdated" | "archived";
+
+type Partitions = Record<PartitionKey, Todo[]>;
+
+function getTodayStr(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function partitionTodos(todos: Todo[]): Partitions {
+  const today = getTodayStr();
+
+  const result: Partitions = {
+    today: [],
+    upcoming: [],
+    inbox: [],
+    outdated: [],
+    archived: [],
+  };
+
+  for (const todo of todos) {
+    // 🧩 用你刚才写的伪代码逻辑填这里
+    if (todo.done === true) {
+      result.archived.push(todo);
+    } else if (todo.due_date === null) {
+      result.inbox.push(todo);
+    } else if (todo.due_date === today) {
+      result.today.push(todo);
+    } else if (todo.due_date < today) {
+      result.outdated.push(todo);
+    } else {
+      result.upcoming.push(todo);
+    }
+  }
+
+  return result;
+}
 
 /**
  * 共享的 Todo 业务逻辑 Hook。
@@ -25,6 +67,8 @@ export { type Todo };
  */
 export function useTodos() {
   const [todos, setTodos] = createTauriStore<Todo[]>([]);
+
+  const partitions = createMemo(() => partitionTodos(todos));
 
   const handleAdd = async (content: string, dueDate: string | null) => {
     const result = await commands.addTodo(content, dueDate);
@@ -65,6 +109,7 @@ export function useTodos() {
 
   return {
     todos,
+    partitions,
     handleAdd,
     handleDelete,
     handleToggle,

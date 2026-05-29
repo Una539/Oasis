@@ -1,5 +1,9 @@
 # Agent Instructions for Oasis
 
+## Communication
+
+- **Always respond in Chinese (中文).**
+
 ## Stack & Structure
 
 - **Tauri v2** desktop app with **SolidJS** frontend, **Rust** backend, **Vite** build, **pnpm** package manager.

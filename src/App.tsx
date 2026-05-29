@@ -21,8 +21,14 @@ import DesktopApp from "./components/DesktopApp";
 
 function App() {
   const deviceType = useDeviceDetect();
-  const { todos, handleAdd, handleDelete, handleToggle, handleUpdate } =
-    useTodos();
+  const {
+    todos,
+    partitions,
+    handleAdd,
+    handleDelete,
+    handleToggle,
+    handleUpdate,
+  } = useTodos();
 
   return (
     <>

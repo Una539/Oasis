@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fdfcf9"/>
+      <stop offset="100%" stop-color="#f5f3ee"/>
+    </linearGradient>
+
+    <linearGradient id="lightBlueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a4c3d2" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#81a4b8" stop-opacity="0.85"/>
+    </linearGradient>
+
+    <linearGradient id="lightPinkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e8c5c8" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#d1a6aa" stop-opacity="0.85"/>
+    </linearGradient>
+
+    <linearGradient id="glassHighlight" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.0"/>
+    </linearGradient>
+
+    <filter id="softShadow" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="3" dy="8" stdDeviation="10" flood-color="#3d3535" flood-opacity="0.06"/>
+      <feDropShadow dx="1" dy="2" stdDeviation="3" flood-color="#3d3535" flood-opacity="0.03"/>
+    </filter>
+    
+    <filter id="insetShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feOffset dx="0" dy="1"/>
+      <feGaussianBlur stdDeviation="2" result="offset-blur"/>
+      <feComposite operator="out" in="SourceGraphic" in2="offset-blur" result="inverse"/>
+      <feFlood flood-color="#000000" flood-opacity="0.02" result="color"/>
+      <feComposite operator="in" in="color" in2="inverse" result="shadow"/>
+      <feComposite operator="over" in="shadow" in2="SourceGraphic"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="32" fill="url(#bgGrad)" filter="url(#insetShadow)"/>
+
+  <line x1="64" y1="448" x2="448" y2="448" stroke="#e6e1d8" stroke-width="1" stroke-dasharray="4 4" />
+  <line x1="64" y1="64" x2="64" y2="448" stroke="#e6e1d8" stroke-width="1" stroke-dasharray="4 4" />
+
+  <g transform="translate(40, 40)" filter="url(#softShadow)">
+    
+    <rect x="200" y="220" width="100" height="160" rx="8" fill="url(#lightPinkGrad)" />
+    <rect x="200" y="220" width="100" height="160" rx="8" fill="none" stroke="url(#glassHighlight)" stroke-width="1.5" style="mix-blend-mode: overlay;"/>
+
+    <rect x="130" y="300" width="140" height="80" rx="8" fill="url(#lightBlueGrad)" />
+    <rect x="130" y="300" width="140" height="80" rx="8" fill="none" stroke="url(#glassHighlight)" stroke-width="1.5" style="mix-blend-mode: overlay;"/>
+
+    <rect x="310" y="140" width="70" height="240" rx="8" fill="url(#lightBlueGrad)" />
+    <rect x="310" y="140" width="70" height="240" rx="8" fill="none" stroke="url(#glassHighlight)" stroke-width="1.5" style="mix-blend-mode: overlay;"/>
+
+    <rect x="80" y="330" width="40" height="50" rx="6" fill="url(#lightPinkGrad)" opacity="0.85" />
+    <rect x="80" y="330" width="40" height="50" rx="6" fill="none" stroke="url(#glassHighlight)" stroke-width="1.2" style="mix-blend-mode: overlay;"/>
+    
+  </g>
+
+  <rect x="0.5" y="0.5" width="511" height="511" rx="31.5" fill="none" stroke="#e0dbd0" stroke-width="1" opacity="0.6"/>
+</svg>
