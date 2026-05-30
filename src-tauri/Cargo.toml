@@ -1,7 +1,7 @@
 [package]
 name = "oasis"
-version = "0.3.0"
-description = "A Tauri App"
+version = "0.4.0"
+description = "一款轻量、简洁的跨平台待办事项桌面应用。"
 authors = ["Uno"]
 license = "GPL-3.0-or-later"
 edition = "2021"
@@ -26,4 +26,3 @@ serde_json = "1"
 specta = "2.0.0-rc.25"
 specta-typescript = "0.0.12"
 tauri-specta = { version = "2.0.0-rc.25", features = ["typescript"] }
-
