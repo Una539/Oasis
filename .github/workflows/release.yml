@@ -77,7 +77,7 @@ jobs:
   # macOS 构建
   build-macos:
     permissions:
-      contents: read
+      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -117,8 +117,9 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: Oasis-v__VERSION__
+          releaseName: 'Oasis v__VERSION__'
           releaseBody: 'placeholder'
-          releaseDraft: false
+          releaseDraft: true
           args: ${{ matrix.args }}
 
       - name: Upload artifact
@@ -131,7 +132,7 @@ jobs:
   # Windows 构建
   build-windows:
     permissions:
-      contents: read
+      contents: write
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -163,8 +164,9 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: Oasis-v__VERSION__
+          releaseName: 'Oasis v__VERSION__'
           releaseBody: 'placeholder'
-          releaseDraft: false
+          releaseDraft: true
           args: ''
 
       - name: Upload artifact
@@ -177,7 +179,7 @@ jobs:
   # Linux 构建
   build-linux:
     permissions:
-      contents: read
+      contents: write
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -214,8 +216,9 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: Oasis-v__VERSION__
+          releaseName: 'Oasis v__VERSION__'
           releaseBody: 'placeholder'
-          releaseDraft: false
+          releaseDraft: true
           args: ''
 
       - name: Upload artifact
