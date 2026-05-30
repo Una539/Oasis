@@ -18,7 +18,7 @@ import { createTauriStore, Todo } from "../rsstore";
 import { commands } from "../bindings";
 import { createMemo } from "solid-js";
 
-export { type Todo };
+export { type Todo, type PartitionKey, type Partitions };
 
 type PartitionKey = "today" | "upcoming" | "inbox" | "outdated" | "archived";
 

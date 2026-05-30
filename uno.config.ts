@@ -20,6 +20,7 @@ export default defineConfig({
       text: "var(--text)",
       "text-secondary": "var(--text-secondary)",
       "text-muted": "var(--text-muted)",
+      primary: "var(--primary)",
     },
     fontFamily: {
       sans: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',

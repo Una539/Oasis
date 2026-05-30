@@ -25,6 +25,7 @@
   --text: #292524;
   --text-secondary: #78716c;
   --text-muted: #a9a29e;
+  --primary: #d4cee8;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -36,6 +37,7 @@
     --text: #f5f5f4;
     --text-secondary: #a8a29e;
     --text-muted: #78716c;
+    --primary: #7a6fa3;
   }
 }
 
@@ -198,6 +200,69 @@ body {
     opacity: 0;
     transform: translateY(-6px);
   }
+}
+
+/* ===== Desktop Sidebar Items ===== */
+.selected-item,
+.unselected-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-secondary);
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.selected-item {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.selected-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 16px;
+  background: var(--text);
+  border-radius: 0 2px 2px 0;
+}
+
+.unselected-item:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+/* ===== Resize Handle ===== */
+.resize-handle {
+  position: relative;
+}
+
+.resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 1.5px;
+  height: 32px;
+  background: var(--text-muted);
+  border-radius: 1px;
+  opacity: 0.5;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.resize-handle:hover::after {
+  opacity: 0.9;
 }
 
 /* ===== Dark Mode Tweaks ===== */

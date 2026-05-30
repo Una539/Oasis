@@ -42,7 +42,7 @@ function App() {
         />
       ) : (
         <DesktopApp
-          todos={todos}
+          partitions={partitions()}
           handleAdd={handleAdd}
           handleDelete={handleDelete}
           handleToggle={handleToggle}
