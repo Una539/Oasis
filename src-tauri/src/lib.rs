@@ -17,7 +17,9 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 mod store;
 
-use std::env;
+use crate::store::{get_storage_path, save_to_disk, TodoCache};
+use std::{env, sync::Mutex};
+use tauri::{Manager, WindowEvent};
 use tauri_specta::{collect_commands, Builder};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -44,8 +46,36 @@ pub fn run() {
     }
 
     tauri::Builder::default()
+        .manage(TodoCache {
+            todos: Mutex::new(None),
+        })
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(builder.invoke_handler())
+        .on_window_event(|window, event| {
+            if let WindowEvent::CloseRequested { .. } = event {
+                let handle = window.app_handle();
+                let cache = handle.state::<TodoCache>();
+
+                let Ok(todos) = cache.todos.lock() else {
+                    eprintln!("保存时锁获取失败");
+                    return;
+                };
+
+                let Some(vec) = &*todos else {
+                    // 缓存为空，无需保存
+                    return;
+                };
+
+                let Ok(path) = get_storage_path(handle) else {
+                    eprintln!("获取路径失败");
+                    return;
+                };
+
+                if let Err(e) = save_to_disk(&path, vec) {
+                    eprintln!("保存失败: {e}");
+                }
+            }
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

@@ -19,8 +19,9 @@ use specta::Type;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
-use tauri::AppHandle;
+use std::sync::Mutex;
 use tauri::Manager;
+use tauri::{AppHandle, State};
 
 static ID_COUNTER: AtomicU64 = AtomicU64::new(0);
 
@@ -33,12 +34,17 @@ fn generate_id() -> String {
     format!("todo-{}-{}", timestamp, counter)
 }
 
-#[derive(Debug, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct Todo {
     pub id: String,
     pub content: String,
     pub done: bool,
     pub due_date: Option<String>,
+}
+
+#[derive(Debug)]
+pub struct TodoCache {
+    pub todos: Mutex<Option<Vec<Todo>>>,
 }
 
 pub fn get_storage_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
@@ -64,7 +70,7 @@ fn load_from_disk(path: &PathBuf) -> Result<Vec<Todo>, String> {
     Ok(todos)
 }
 
-fn save_to_disk(path: &PathBuf, todos: &[Todo]) -> Result<(), String> {
+pub fn save_to_disk(path: &PathBuf, todos: &[Todo]) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
@@ -74,23 +80,32 @@ fn save_to_disk(path: &PathBuf, todos: &[Todo]) -> Result<(), String> {
 
 #[tauri::command]
 #[specta::specta]
-pub async fn load_todos(app: AppHandle) -> Result<Vec<Todo>, String> {
-    let path = get_storage_path(&app)?;
-    load_from_disk(&path)
+pub async fn load_todos(app: AppHandle, cache: State<'_, TodoCache>) -> Result<Vec<Todo>, String> {
+    let mut todos = cache.todos.lock().map_err(|e| e.to_string())?;
+
+    match &*todos {
+        None => {
+            let path = get_storage_path(&app)?;
+            let loaded = load_from_disk(&path)?;
+            *todos = Some(loaded.clone());
+            Ok(loaded)
+        }
+        Some(vec) => Ok(vec.clone()),
+    }
 }
 
 #[tauri::command]
 #[specta::specta]
 pub async fn add_todo(
-    app: AppHandle,
+    cache: State<'_, TodoCache>,
     content: String,
     due_date: Option<String>,
 ) -> Result<Vec<Todo>, String> {
-    let path = get_storage_path(&app)?;
-    let mut todos = load_from_disk(&path)?;
-
     let id = generate_id();
 
+    let mut todos_guard = cache.todos.lock().map_err(|e| e.to_string())?;
+
+    let todos = todos_guard.get_or_insert_with(Vec::new);
     todos.push(Todo {
         id,
         content,
@@ -98,47 +113,47 @@ pub async fn add_todo(
         due_date,
     });
 
-    save_to_disk(&path, &todos)?;
-    Ok(todos)
+    Ok(todos.clone())
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn delete_todo(app: AppHandle, id: String) -> Result<Vec<Todo>, String> {
-    let path = get_storage_path(&app)?;
-    let mut todos = load_from_disk(&path)?;
+pub async fn delete_todo(cache: State<'_, TodoCache>, id: String) -> Result<Vec<Todo>, String> {
+    let mut todos_guard = cache.todos.lock().map_err(|e| e.to_string())?;
+
+    let todos = todos_guard.get_or_insert_with(Vec::new);
 
     todos.retain(|t| t.id != id);
-    save_to_disk(&path, &todos)?;
-    Ok(todos)
+    Ok(todos.clone())
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn toggle_todo(app: AppHandle, id: String) -> Result<Vec<Todo>, String> {
-    let path = get_storage_path(&app)?;
-    let mut todos = load_from_disk(&path)?;
+pub async fn toggle_todo(cache: State<'_, TodoCache>, id: String) -> Result<Vec<Todo>, String> {
+    let mut todos_guard = cache.todos.lock().map_err(|e| e.to_string())?;
+
+    let todos = todos_guard.get_or_insert_with(Vec::new);
     if let Some(todo) = todos.iter_mut().find(|t| t.id == id) {
         todo.done = !todo.done;
     }
 
-    save_to_disk(&path, &todos)?;
-    Ok(todos)
+    Ok(todos.clone())
 }
 
 #[tauri::command]
 #[specta::specta]
 pub async fn update_todo_content(
-    app: AppHandle,
+    cache: State<'_, TodoCache>,
     id: String,
     content: String,
 ) -> Result<Vec<Todo>, String> {
-    let path = get_storage_path(&app)?;
-    let mut todos = load_from_disk(&path)?;
+    let mut todos_guard = cache.todos.lock().map_err(|e| e.to_string())?;
+
+    let todos = todos_guard.get_or_insert_with(Vec::new);
 
     if let Some(todo) = todos.iter_mut().find(|t| t.id == id) {
         todo.content = content;
     }
-    save_to_disk(&path, &todos)?;
-    Ok(todos)
+
+    Ok(todos.clone())
 }
