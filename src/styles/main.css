@@ -271,3 +271,151 @@ body {
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
   }
 }
+
+/* ===== Mobile Select Dropdown ===== */
+.select-trigger[data-placeholder-shown] {
+  color: var(--text-muted);
+}
+
+.select-trigger[data-disabled] {
+  opacity: 0.5;
+  filter: grayscale(100%);
+}
+
+.select-trigger[data-invalid] {
+  border-color: var(--error, #ef4444);
+}
+
+.select-trigger:focus-visible {
+  border-color: var(--text);
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--text-muted);
+}
+
+@media (prefers-color-scheme: dark) {
+  .select-trigger:focus-visible {
+    box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--text-muted);
+  }
+}
+
+.select-trigger svg,
+.select-indicator svg {
+  width: 1rem;
+  height: 1rem;
+  color: var(--text-muted);
+}
+
+.select-content[data-state='open'] {
+  animation: select-scale-in 0.15s ease-out;
+}
+
+.select-content[data-state='closed'] {
+  animation: select-scale-out 0.1s ease-in;
+}
+
+.select-content {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 50;
+  max-height: min(var(--available-height, 300px), 300px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) var(--surface);
+}
+
+@media (prefers-color-scheme: dark) {
+  .select-content {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  }
+
+  .select-content::-webkit-scrollbar-thumb {
+    background: var(--text-muted);
+    border-radius: 4px;
+  }
+}
+
+.select-item[data-highlighted] {
+  background: var(--surface-hover);
+}
+
+.select-item[data-state='checked'] {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.select-item-indicator {
+  color: var(--text);
+}
+
+.select-item-indicator svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.select-clear-trigger {
+  color: var(--text-muted);
+  border: 0;
+  background: transparent;
+  transition: color 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  border-radius: 4px;
+}
+
+.select-clear-trigger:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.select-clear-trigger svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+@keyframes select-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes select-scale-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+/* Mobile select positioning */
+.mobile-select-wrapper {
+  width: 60%;
+}
+
+.mobile-select-control {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  position: relative;
+}
+
+.mobile-select-indicators {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  pointer-events: none;
+  align-items: center;
+  gap: 4px;
+}

@@ -21,20 +21,14 @@ import DesktopApp from "./components/DesktopApp";
 
 function App() {
   const deviceType = useDeviceDetect();
-  const {
-    todos,
-    partitions,
-    handleAdd,
-    handleDelete,
-    handleToggle,
-    handleUpdate,
-  } = useTodos();
+  const { partitions, handleAdd, handleDelete, handleToggle, handleUpdate } =
+    useTodos();
 
   return (
     <>
       {deviceType() === "mobile" ? (
         <MobileApp
-          todos={todos}
+          partitions={partitions()}
           handleAdd={handleAdd}
           handleDelete={handleDelete}
           handleToggle={handleToggle}

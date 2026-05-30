@@ -75,7 +75,7 @@ export default function TodoInput(props: TodoInputProps) {
         >
           <Popover.Trigger
             type="button"
-            class="flex items-center justify-center border-none bg-transparent cursor-pointer color-text-muted transition-all duration-150 flex-shrink-0 min-w-12 min-h-12 hover:color-text hover:bg-surface-hover active:scale-95"
+            class="flex items-center justify-center border-none bg-transparent cursor-pointer color-text-muted transition-all duration-150 flex-shrink-0 min-w-12 min-h-12 hover:color-text hover:bg-surface-hover active:opacity-80"
             classList={{ "color-text bg-surface-hover": isCalendarActive() }}
             aria-label="选择截止日期"
             title="选择截止日期"
@@ -97,7 +97,7 @@ export default function TodoInput(props: TodoInputProps) {
 
         <button
           type="submit"
-          class="flex items-center justify-center border-none !bg-text cursor-pointer color-bg transition-all duration-150 flex-shrink-0 min-w-12 min-h-12 hover:bg-text-secondary active:scale-95"
+          class="flex items-center justify-center border-none !bg-text cursor-pointer color-bg transition-all duration-150 flex-shrink-0 min-w-12 min-h-12 hover:bg-text-secondary active:opacity-80"
           aria-label="添加待办"
           title="添加待办 (Enter)"
         >
