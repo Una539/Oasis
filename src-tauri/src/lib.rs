@@ -35,6 +35,7 @@ pub fn run() {
         store::delete_todo,
         store::toggle_todo,
         store::update_todo_content,
+        store::update_todo_due_date,
     ]);
 
     #[cfg(all(debug_assertions, not(target_os = "android")))]
@@ -92,6 +93,7 @@ mod tests {
             super::store::delete_todo,
             super::store::toggle_todo,
             super::store::update_todo_content,
+            super::store::update_todo_due_date,
             super::store::load_todos,
         ]);
         builder

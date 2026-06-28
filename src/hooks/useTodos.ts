@@ -44,7 +44,6 @@ function partitionTodos(todos: Todo[]): Partitions {
   };
 
   for (const todo of todos) {
-    // 🧩 用你刚才写的伪代码逻辑填这里
     if (todo.done === true) {
       result.archived.push(todo);
     } else if (todo.due_date === null) {
@@ -107,6 +106,15 @@ export function useTodos() {
     }
   };
 
+  const handleUpdateDueDate = async (id: string, dueDate: string | null) => {
+    const result = await commands.updateTodoDueDate(id, dueDate);
+    if (result.status === "ok") {
+      setTodos(result.data);
+    } else {
+      console.error("更新截止日期失败：", result.error);
+    }
+  };
+
   return {
     todos,
     partitions,
@@ -114,5 +122,6 @@ export function useTodos() {
     handleDelete,
     handleToggle,
     handleUpdate,
+    handleUpdateDueDate,
   };
 }

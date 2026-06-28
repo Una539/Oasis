@@ -8,6 +8,7 @@ export const commands = {
 	deleteTodo: (id: string) => typedError<Todo[], string>(__TAURI_INVOKE("delete_todo", { id })),
 	toggleTodo: (id: string) => typedError<Todo[], string>(__TAURI_INVOKE("toggle_todo", { id })),
 	updateTodoContent: (id: string, content: string) => typedError<Todo[], string>(__TAURI_INVOKE("update_todo_content", { id, content })),
+	updateTodoDueDate: (id: string, dueDate: string | null) => typedError<Todo[], string>(__TAURI_INVOKE("update_todo_due_date", { id, dueDate })),
 	loadTodos: () => typedError<Todo[], string>(__TAURI_INVOKE("load_todos")),
 };
 

@@ -14,7 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { createMemo, createSignal, For, onCleanup, onMount } from "solid-js";
+import {
+  createMemo,
+  createSignal,
+  For,
+  onCleanup,
+  onMount,
+  Show,
+} from "solid-js";
 import { type PartitionKey, type Partitions } from "../hooks/useTodos";
 import TodoInput from "./TodoInput";
 import DesktopTodoItem from "./DesktopTodoItem";
@@ -38,6 +45,14 @@ const PARTITION_LABELS: Record<PartitionKey, string> = {
   archived: "已完成",
 };
 
+const EMPTY_MESSAGES: Record<PartitionKey, string> = {
+  today: "今天没有待办，保持这份清爽。",
+  upcoming: "未来还没有安排。",
+  inbox: "没有未安排日期的待办。",
+  outdated: "没有过期待办。",
+  archived: "还没有完成记录。",
+};
+
 // 侧边栏宽度约束
 const MIN_SIDEBAR_WIDTH = 120; // 最小宽度：120px（太窄显示不全）
 const DEFAULT_SIDEBAR_WIDTH = 160; // 默认宽度：160px
@@ -54,6 +69,8 @@ interface DesktopAppProps {
   handleToggle: (id: string) => Promise<void>;
   // 更新待办内容
   handleUpdate: (id: string, content: string) => Promise<void>;
+  // 更新待办截止日期
+  handleUpdateDueDate: (id: string, dueDate: string | null) => Promise<void>;
 }
 
 // ==================== 主组件 ====================
@@ -198,12 +215,15 @@ export default function DesktopApp(props: DesktopAppProps) {
       />
 
       {/* 内容区域 */}
-      <div flex-1 px-5 pt-6 pb-5 flex flex-col gap-3 h-full box-border>
+      <div flex-1 min-w-0 px-5 pt-6 pb-5 flex flex-col gap-3 h-full box-border>
         {/* 添加待办输入框 */}
         <TodoInput onAdd={props.handleAdd} />
 
         {/* 待办列表（可滚动） */}
-        <div flex-1 overflow-y-auto overflow-x-hidden pr-1>
+        <div flex-1 min-w-0 overflow-y-auto overflow-x-hidden pr-1>
+          <Show when={currentTodos().length === 0}>
+            <div class="empty-state">{EMPTY_MESSAGES[currentPartition()]}</div>
+          </Show>
           <For each={currentTodos()}>
             {(todo) => (
               <DesktopTodoItem
@@ -211,6 +231,8 @@ export default function DesktopApp(props: DesktopAppProps) {
                 onToggle={props.handleToggle}
                 onDelete={props.handleDelete}
                 onUpdate={props.handleUpdate}
+                onUpdateDueDate={props.handleUpdateDueDate}
+                canReschedule={currentPartition() === "outdated"}
               />
             )}
           </For>

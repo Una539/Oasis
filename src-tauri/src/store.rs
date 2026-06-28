@@ -78,6 +78,11 @@ pub fn save_to_disk(path: &PathBuf, todos: &[Todo]) -> Result<(), String> {
     fs::write(path, json).map_err(|e| e.to_string())
 }
 
+fn save_current_todos(app: &AppHandle, todos: &[Todo]) -> Result<(), String> {
+    let path = get_storage_path(app)?;
+    save_to_disk(&path, todos)
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn load_todos(app: AppHandle, cache: State<'_, TodoCache>) -> Result<Vec<Todo>, String> {
@@ -97,6 +102,7 @@ pub async fn load_todos(app: AppHandle, cache: State<'_, TodoCache>) -> Result<V
 #[tauri::command]
 #[specta::specta]
 pub async fn add_todo(
+    app: AppHandle,
     cache: State<'_, TodoCache>,
     content: String,
     due_date: Option<String>,
@@ -113,23 +119,33 @@ pub async fn add_todo(
         due_date,
     });
 
+    save_current_todos(&app, todos)?;
     Ok(todos.clone())
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn delete_todo(cache: State<'_, TodoCache>, id: String) -> Result<Vec<Todo>, String> {
+pub async fn delete_todo(
+    app: AppHandle,
+    cache: State<'_, TodoCache>,
+    id: String,
+) -> Result<Vec<Todo>, String> {
     let mut todos_guard = cache.todos.lock().map_err(|e| e.to_string())?;
 
     let todos = todos_guard.get_or_insert_with(Vec::new);
 
     todos.retain(|t| t.id != id);
+    save_current_todos(&app, todos)?;
     Ok(todos.clone())
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn toggle_todo(cache: State<'_, TodoCache>, id: String) -> Result<Vec<Todo>, String> {
+pub async fn toggle_todo(
+    app: AppHandle,
+    cache: State<'_, TodoCache>,
+    id: String,
+) -> Result<Vec<Todo>, String> {
     let mut todos_guard = cache.todos.lock().map_err(|e| e.to_string())?;
 
     let todos = todos_guard.get_or_insert_with(Vec::new);
@@ -137,12 +153,14 @@ pub async fn toggle_todo(cache: State<'_, TodoCache>, id: String) -> Result<Vec<
         todo.done = !todo.done;
     }
 
+    save_current_todos(&app, todos)?;
     Ok(todos.clone())
 }
 
 #[tauri::command]
 #[specta::specta]
 pub async fn update_todo_content(
+    app: AppHandle,
     cache: State<'_, TodoCache>,
     id: String,
     content: String,
@@ -155,5 +173,26 @@ pub async fn update_todo_content(
         todo.content = content;
     }
 
+    save_current_todos(&app, todos)?;
+    Ok(todos.clone())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn update_todo_due_date(
+    app: AppHandle,
+    cache: State<'_, TodoCache>,
+    id: String,
+    due_date: Option<String>,
+) -> Result<Vec<Todo>, String> {
+    let mut todos_guard = cache.todos.lock().map_err(|e| e.to_string())?;
+
+    let todos = todos_guard.get_or_insert_with(Vec::new);
+
+    if let Some(todo) = todos.iter_mut().find(|t| t.id == id) {
+        todo.due_date = due_date;
+    }
+
+    save_current_todos(&app, todos)?;
     Ok(todos.clone())
 }

@@ -14,17 +14,36 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import { createSignal, Show } from "solid-js";
 import { X } from "lucide-solid";
 import { type Todo } from "../hooks/useTodos";
+import { getTodayDateString } from "../utils/date";
+import DueDateChip from "./DueDateChip";
 
 interface DesktopTodoItemProps {
   todo: Todo;
   onToggle: (id: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onUpdate: (id: string, content: string) => Promise<void>;
+  onUpdateDueDate: (id: string, dueDate: string | null) => Promise<void>;
+  canReschedule: boolean;
 }
 
 export default function DesktopTodoItem(props: DesktopTodoItemProps) {
+  const [datePickerOpen, setDatePickerOpen] = createSignal(false);
+  const [draftDueDate, setDraftDueDate] = createSignal("");
+
+  const handleDateClear = async () => {
+    await props.onUpdateDueDate(props.todo.id, null);
+    setDatePickerOpen(false);
+    setDraftDueDate("");
+  };
+
+  const handleOpenChange = (open: boolean) => {
+    setDatePickerOpen(open);
+    setDraftDueDate(open ? getTodayDateString() : "");
+  };
+
   return (
     <div
       class="group"
@@ -47,14 +66,12 @@ export default function DesktopTodoItem(props: DesktopTodoItemProps) {
         checked={props.todo.done}
         onChange={() => props.onToggle(props.todo.id)}
       />
-        <input
-          type="text"
-          class={`todo-text-input ${props.todo.done ? "done" : ""}`}
-          value={props.todo.content}
-          onChange={(e) =>
-            props.onUpdate(props.todo.id, e.currentTarget.value)
-          }
-        />
+      <input
+        type="text"
+        class={`todo-text-input ${props.todo.done ? "done" : ""}`}
+        value={props.todo.content}
+        onChange={(e) => props.onUpdate(props.todo.id, e.currentTarget.value)}
+      />
       {props.todo.due_date && (
         <span
           text="[12px]"
@@ -66,6 +83,22 @@ export default function DesktopTodoItem(props: DesktopTodoItemProps) {
           {props.todo.due_date}
         </span>
       )}
+      <Show when={props.canReschedule}>
+        <DueDateChip
+          open={datePickerOpen()}
+          value={draftDueDate() || props.todo.due_date || ""}
+          onOpenChange={handleOpenChange}
+          onValueChange={(value) => {
+            setDraftDueDate(value);
+            void props.onUpdateDueDate(props.todo.id, value || null);
+          }}
+          onClear={handleDateClear}
+          triggerClass="todo-icon-button"
+          triggerLabel="重新安排截止日期"
+          triggerTitle="重新安排"
+          showValue={false}
+        />
+      </Show>
       <button
         class="hidden group-hover:flex"
         items-center

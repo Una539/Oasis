@@ -14,8 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { createSignal, createMemo, onCleanup } from "solid-js";
+import { createSignal, createMemo, onCleanup, Show } from "solid-js";
 import { type Todo } from "../hooks/useTodos";
+import { getTodayDateString } from "../utils/date";
+import DueDateChip from "./DueDateChip";
 
 const DELETE_THRESHOLD = 120;
 
@@ -114,11 +116,26 @@ interface MobileTodoItemProps {
   onToggle: (id: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onUpdate: (id: string, content: string) => Promise<void>;
+  onUpdateDueDate: (id: string, dueDate: string | null) => Promise<void>;
+  canReschedule: boolean;
 }
 
 export default function MobileTodoItem(props: MobileTodoItemProps) {
   const { offset, trackClass, onTouchStart, onTouchMove, onTouchEnd } =
     createSwipeToDelete(() => props.onDelete(props.todo.id));
+  const [datePickerOpen, setDatePickerOpen] = createSignal(false);
+  const [draftDueDate, setDraftDueDate] = createSignal("");
+
+  const handleDateClear = async () => {
+    await props.onUpdateDueDate(props.todo.id, null);
+    setDatePickerOpen(false);
+    setDraftDueDate("");
+  };
+
+  const handleOpenChange = (open: boolean) => {
+    setDatePickerOpen(open);
+    setDraftDueDate(open ? getTodayDateString() : "");
+  };
 
   return (
     <div relative mb="2.5" rounded-mobile overflow-hidden>
@@ -162,6 +179,22 @@ export default function MobileTodoItem(props: MobileTodoItemProps) {
             {props.todo.due_date}
           </span>
         )}
+        <Show when={props.canReschedule}>
+          <DueDateChip
+            open={datePickerOpen()}
+            value={draftDueDate() || props.todo.due_date || ""}
+            onOpenChange={handleOpenChange}
+            onValueChange={(value) => {
+              setDraftDueDate(value);
+              void props.onUpdateDueDate(props.todo.id, value || null);
+            }}
+            onClear={handleDateClear}
+            triggerClass="todo-icon-button mobile"
+            triggerLabel="重新安排截止日期"
+            triggerTitle="重新安排"
+            showValue={false}
+          />
+        </Show>
       </div>
     </div>
   );

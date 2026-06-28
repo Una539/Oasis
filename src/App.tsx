@@ -21,8 +21,14 @@ import DesktopApp from "./components/DesktopApp";
 
 function App() {
   const deviceType = useDeviceDetect();
-  const { partitions, handleAdd, handleDelete, handleToggle, handleUpdate } =
-    useTodos();
+  const {
+    partitions,
+    handleAdd,
+    handleDelete,
+    handleToggle,
+    handleUpdate,
+    handleUpdateDueDate,
+  } = useTodos();
 
   return (
     <>
@@ -33,6 +39,7 @@ function App() {
           handleDelete={handleDelete}
           handleToggle={handleToggle}
           handleUpdate={handleUpdate}
+          handleUpdateDueDate={handleUpdateDueDate}
         />
       ) : (
         <DesktopApp
@@ -41,6 +48,7 @@ function App() {
           handleDelete={handleDelete}
           handleToggle={handleToggle}
           handleUpdate={handleUpdate}
+          handleUpdateDueDate={handleUpdateDueDate}
         />
       )}
     </>

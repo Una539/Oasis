@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { For, createSignal } from "solid-js";
+import { For, Show, createSignal } from "solid-js";
 import { type PartitionKey, type Partitions } from "../hooks/useTodos";
 import TodoInput from "./TodoInput";
 import MobileTodoItem from "./MobileTodoItem";
@@ -38,7 +38,16 @@ interface MobileAppProps {
   handleDelete: (id: string) => Promise<void>;
   handleToggle: (id: string) => Promise<void>;
   handleUpdate: (id: string, content: string) => Promise<void>;
+  handleUpdateDueDate: (id: string, dueDate: string | null) => Promise<void>;
 }
+
+const EMPTY_MESSAGES: Record<PartitionKey, string> = {
+  today: "今天没有待办，保持这份清爽。",
+  upcoming: "未来还没有安排。",
+  inbox: "没有未安排日期的待办。",
+  outdated: "没有过期待办。",
+  archived: "还没有完成记录。",
+};
 
 export default function MobileApp(props: MobileAppProps) {
   const [currentPartition, setCurrentPartition] =
@@ -133,6 +142,9 @@ export default function MobileApp(props: MobileAppProps) {
         <TodoInput onAdd={props.handleAdd} />
 
         <div flex-1 overflow-y-auto overflow-x-hidden pr-1 flex flex-col gap-2>
+          <Show when={currentTodos().length === 0}>
+            <div class="empty-state mobile">{EMPTY_MESSAGES[currentPartition()]}</div>
+          </Show>
           <For each={currentTodos()}>
             {(todo) => (
               <MobileTodoItem
@@ -140,6 +152,8 @@ export default function MobileApp(props: MobileAppProps) {
                 onToggle={props.handleToggle}
                 onDelete={props.handleDelete}
                 onUpdate={props.handleUpdate}
+                onUpdateDueDate={props.handleUpdateDueDate}
+                canReschedule={currentPartition() === "outdated"}
               />
             )}
           </For>
