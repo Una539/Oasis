@@ -1,5 +1,8 @@
 buildscript {
     repositories {
+        maven("https://maven.aliyun.com/repository/google")
+        maven("https://maven.aliyun.com/repository/public")
+        maven("https://maven.aliyun.com/repository/gradle-plugin")
         google()
         mavenCentral()
     }
@@ -11,6 +14,9 @@ buildscript {
 
 allprojects {
     repositories {
+        maven("https://maven.aliyun.com/repository/google")
+        maven("https://maven.aliyun.com/repository/public")
+        maven("https://maven.aliyun.com/repository/gradle-plugin")
         google()
         mavenCentral()
     }
@@ -19,4 +25,3 @@ allprojects {
 tasks.register("clean").configure {
     delete("build")
 }
-

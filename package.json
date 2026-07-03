@@ -1,6 +1,6 @@
 {
   "name": "oasis",
-  "version": "0.4.0",
+  "version": "0.5.1",
   "description": "一款轻量、简洁的跨平台待办事项桌面应用。",
   "type": "module",
   "scripts": {
@@ -8,13 +8,18 @@
     "dev": "vite",
     "build": "vite build",
     "serve": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "android:init": "tauri android init",
+    "android:dev": "tauri android dev",
+    "android:dev:open": "tauri android dev --open",
+    "android:build": "tauri android build"
   },
   "packageManager": "pnpm@11.0.9",
   "license": "GPL-3.0-or-later",
   "dependencies": {
     "@ark-ui/solid": "^5.36.2",
     "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-notification": "^2.3.3",
     "@tauri-apps/plugin-opener": "^2",
     "lucide-solid": "^1.3.0",
     "solid-js": "^1.9.3"

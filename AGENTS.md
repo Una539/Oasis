@@ -27,7 +27,8 @@
 ## Rust Notes
 
 - Crate lib name is `oasis_lib`, not `oasis` (see `Cargo.toml` `name` under `[lib]`).
-- Linux auto-sets `WEBKIT_DISABLE_DMABUF_RENDERER=1` in `src-tauri/src/lib.rs`.
+- Linux keeps the system GTK backend; do not auto-set `GDK_BACKEND`.
+- Linux conditionally sets `WEBKIT_DISABLE_DMABUF_RENDERER=1` for NVIDIA GPUs, affected Wayland client versions, or explicit `OASIS_DISABLE_DMABUF_RENDERER=1`; `OASIS_ENABLE_DMABUF_RENDERER=1` skips this fallback.
 - Mobile entry point is declared: `#[cfg_attr(mobile, tauri::mobile_entry_point)]`.
 
 ## TypeScript / SolidJS Conventions

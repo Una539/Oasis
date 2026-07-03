@@ -22,13 +22,22 @@ import {
   onMount,
   Show,
 } from "solid-js";
-import { type PartitionKey, type Partitions } from "../hooks/useTodos";
+import { Trash2Icon } from "lucide-solid";
+import { type AppState as GeneratedAppState } from "../bindings";
+import {
+  type CorePartitionKey,
+  type Partitions,
+  type Tag,
+  type TodoStats,
+  type ViewKey,
+} from "../hooks/useTodos";
 import TodoInput from "./TodoInput";
 import DesktopTodoItem from "./DesktopTodoItem";
+import StatsPanel from "./StatsPanel";
 
 // ==================== 常量定义 ====================
 // 分区 key 列表，用于遍历渲染侧边栏按钮
-const PARTITION_KEYS: PartitionKey[] = [
+const PARTITION_KEYS: CorePartitionKey[] = [
   "today",
   "upcoming",
   "inbox",
@@ -37,7 +46,7 @@ const PARTITION_KEYS: PartitionKey[] = [
 ];
 
 // 分区 key 对应的中文显示名称
-const PARTITION_LABELS: Record<PartitionKey, string> = {
+const PARTITION_LABELS: Record<CorePartitionKey, string> = {
   today: "今天",
   upcoming: "未来",
   inbox: "任意时间",
@@ -45,7 +54,7 @@ const PARTITION_LABELS: Record<PartitionKey, string> = {
   archived: "已完成",
 };
 
-const EMPTY_MESSAGES: Record<PartitionKey, string> = {
+const EMPTY_MESSAGES: Record<CorePartitionKey, string> = {
   today: "今天没有待办，保持这份清爽。",
   upcoming: "未来还没有安排。",
   inbox: "没有未安排日期的待办。",
@@ -61,8 +70,15 @@ const DEFAULT_SIDEBAR_WIDTH = 160; // 默认宽度：160px
 interface DesktopAppProps {
   // 分区后的待办事项数据 { today: [...], upcoming: [...], ... }
   partitions: Partitions;
+  tags: Tag[];
+  stats: TodoStats;
+  getTodosForView: (view: ViewKey) => import("../hooks/useTodos").Todo[];
   // 添加待办
-  handleAdd: (content: string, dueDate: string | null) => Promise<boolean>;
+  handleAdd: (
+    content: string,
+    dueDate: string | null,
+    tagIds: string[],
+  ) => Promise<boolean>;
   // 删除待办
   handleDelete: (id: string) => Promise<void>;
   // 切换待办完成状态
@@ -71,15 +87,22 @@ interface DesktopAppProps {
   handleUpdate: (id: string, content: string) => Promise<void>;
   // 更新待办截止日期
   handleUpdateDueDate: (id: string, dueDate: string | null) => Promise<void>;
+  handleUpdatePriority: (id: string, priority: number) => Promise<void>;
+  handleUpdateTags: (id: string, tagIds: string[]) => Promise<void>;
+  handleUpdateReminder: (id: string, reminderEnabled: boolean) => Promise<void>;
+  handleApplyAppState: (state: GeneratedAppState) => void;
+  handleDeleteTag: (id: string) => Promise<void>;
 }
+
+type DesktopViewKey = CorePartitionKey | "stats";
 
 // ==================== 主组件 ====================
 export default function DesktopApp(props: DesktopAppProps) {
   // ---- 状态定义 ----
 
   // 当前选中的分区（默认显示"今天"分区）
-  const [currentPartition, setCurrentPartition] =
-    createSignal<PartitionKey>("today");
+  const [currentView, setCurrentView] = createSignal<DesktopViewKey>("today");
+  const [selectedTagId, setSelectedTagId] = createSignal<string | null>(null);
 
   // 用户拖拽设定的目标宽度（可能超过最大值，由 sidebarWidth 计算时限制）
   const [targetWidth, setTargetWidth] = createSignal(DEFAULT_SIDEBAR_WIDTH);
@@ -170,7 +193,43 @@ export default function DesktopApp(props: DesktopAppProps) {
   // ---- 计算属性 ----
   // 根据当前分区获取对应的待办列表
   const currentTodos = () => {
-    return props.partitions[currentPartition()];
+    const view = currentView();
+    if (view === "stats") return [];
+
+    const tagId = selectedTagId();
+    const todos = props.partitions[view];
+    if (!tagId) return todos;
+    return todos.filter((todo) => todo.tag_ids.includes(tagId));
+  };
+
+  const currentEmptyMessage = () => {
+    const view = currentView();
+    if (view === "stats") return "";
+    if (selectedTagId()) return "这个标签筛选下还没有待办。";
+    return EMPTY_MESSAGES[view as CorePartitionKey];
+  };
+
+  const tagCount = (tagId: string) => {
+    const view = currentView();
+    const partition = view === "stats" ? props.partitions.today : props.partitions[view];
+    return partition.filter((todo) => {
+      if (!todo.tag_ids.includes(tagId)) return false;
+      return view === "archived" || !todo.done;
+    }).length;
+  };
+
+  const toggleTagFilter = (tagId: string) => {
+    setSelectedTagId((current) => (current === tagId ? null : tagId));
+    if (currentView() === "stats") {
+      setCurrentView("today");
+    }
+  };
+
+  const deleteTag = async (tagId: string) => {
+    await props.handleDeleteTag(tagId);
+    if (selectedTagId() === tagId) {
+      setSelectedTagId(null);
+    }
   };
 
   // ==================== 渲染 ====================
@@ -189,9 +248,9 @@ export default function DesktopApp(props: DesktopAppProps) {
         <For each={PARTITION_KEYS}>
           {(key) => (
             <button
-              onClick={() => setCurrentPartition(key)} // 点击切换分区
+              onClick={() => setCurrentView(key)} // 点击切换分区
               class={
-                currentPartition() === key
+                currentView() === key
                   ? "selected-item" // 选中样式
                   : "unselected-item" // 未选中样式
               }
@@ -202,6 +261,55 @@ export default function DesktopApp(props: DesktopAppProps) {
             </button>
           )}
         </For>
+
+        <button
+          onClick={() => setCurrentView("stats")}
+          class={currentView() === "stats" ? "selected-item" : "unselected-item"}
+        >
+          <span>统计</span>
+          <span>Pulse</span>
+        </button>
+
+        <Show when={props.tags.length > 0}>
+          <div class="sidebar-section-title">标签</div>
+          <For each={props.tags}>
+            {(tag) => {
+              return (
+                <div
+                  class={
+                    selectedTagId() === tag.id
+                      ? "sidebar-tag-item selected"
+                      : "sidebar-tag-item"
+                  }
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleTagFilter(tag.id)}
+                    class="sidebar-tag-filter"
+                  >
+                    <span class="sidebar-tag-label" style={{ "--tag-color": tag.color }}>
+                      {tag.name}
+                    </span>
+                    <span class="sidebar-tag-count">{tagCount(tag.id)}</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="sidebar-tag-delete"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void deleteTag(tag.id);
+                    }}
+                    aria-label={`删除标签 ${tag.name}`}
+                    title="删除标签"
+                  >
+                    <Trash2Icon size={14} />
+                  </button>
+                </div>
+              );
+            }}
+          </For>
+        </Show>
+
       </nav>
 
       {/* 拖拽调整手柄 */}
@@ -216,26 +324,42 @@ export default function DesktopApp(props: DesktopAppProps) {
 
       {/* 内容区域 */}
       <div flex-1 min-w-0 px-5 pt-6 pb-5 flex flex-col gap-3 h-full box-border>
-        {/* 添加待办输入框 */}
-        <TodoInput onAdd={props.handleAdd} />
+        <Show when={currentView() !== "stats"}>
+          {/* 添加待办输入框 */}
+          <TodoInput
+            tags={props.tags}
+            onAdd={props.handleAdd}
+            onAppStateChange={props.handleApplyAppState}
+          />
+        </Show>
 
         {/* 待办列表（可滚动） */}
         <div flex-1 min-w-0 overflow-y-auto overflow-x-hidden pr-1>
-          <Show when={currentTodos().length === 0}>
-            <div class="empty-state">{EMPTY_MESSAGES[currentPartition()]}</div>
+          <Show when={currentView() === "stats"}>
+            <StatsPanel stats={props.stats} />
           </Show>
-          <For each={currentTodos()}>
-            {(todo) => (
-              <DesktopTodoItem
-                todo={todo}
-                onToggle={props.handleToggle}
-                onDelete={props.handleDelete}
-                onUpdate={props.handleUpdate}
-                onUpdateDueDate={props.handleUpdateDueDate}
-                canReschedule={currentPartition() === "outdated"}
-              />
-            )}
-          </For>
+          <Show when={currentView() !== "stats" && currentTodos().length === 0}>
+            <div class="empty-state">{currentEmptyMessage()}</div>
+          </Show>
+          <Show when={currentView() !== "stats"}>
+            <For each={currentTodos()}>
+              {(todo) => (
+                <DesktopTodoItem
+                  todo={todo}
+                  tags={props.tags}
+                  onToggle={props.handleToggle}
+                  onDelete={props.handleDelete}
+                  onUpdate={props.handleUpdate}
+                  onUpdateDueDate={props.handleUpdateDueDate}
+                  onUpdatePriority={props.handleUpdatePriority}
+                  onUpdateTags={props.handleUpdateTags}
+                  onUpdateReminder={props.handleUpdateReminder}
+                  onAppStateChange={props.handleApplyAppState}
+                  canReschedule={currentView() === "outdated"}
+                />
+              )}
+            </For>
+          </Show>
         </div>
       </div>
     </main>

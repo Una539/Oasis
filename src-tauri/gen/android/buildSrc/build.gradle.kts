@@ -12,6 +12,9 @@ gradlePlugin {
 }
 
 repositories {
+    maven("https://maven.aliyun.com/repository/google")
+    maven("https://maven.aliyun.com/repository/public")
+    maven("https://maven.aliyun.com/repository/gradle-plugin")
     google()
     mavenCentral()
 }
@@ -20,4 +23,3 @@ dependencies {
     compileOnly(gradleApi())
     implementation("com.android.tools.build:gradle:8.11.0")
 }
-

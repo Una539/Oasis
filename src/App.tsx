@@ -23,11 +23,19 @@ function App() {
   const deviceType = useDeviceDetect();
   const {
     partitions,
+    tags,
+    stats,
+    getTodosForView,
     handleAdd,
     handleDelete,
     handleToggle,
     handleUpdate,
     handleUpdateDueDate,
+    handleUpdatePriority,
+    handleUpdateTags,
+    handleUpdateReminder,
+    handleApplyAppState,
+    handleDeleteTag,
   } = useTodos();
 
   return (
@@ -35,20 +43,36 @@ function App() {
       {deviceType() === "mobile" ? (
         <MobileApp
           partitions={partitions()}
+          tags={tags()}
+          stats={stats()}
+          getTodosForView={getTodosForView}
           handleAdd={handleAdd}
           handleDelete={handleDelete}
           handleToggle={handleToggle}
           handleUpdate={handleUpdate}
           handleUpdateDueDate={handleUpdateDueDate}
+          handleUpdatePriority={handleUpdatePriority}
+          handleUpdateTags={handleUpdateTags}
+          handleUpdateReminder={handleUpdateReminder}
+          handleApplyAppState={handleApplyAppState}
+          handleDeleteTag={handleDeleteTag}
         />
       ) : (
         <DesktopApp
           partitions={partitions()}
+          tags={tags()}
+          stats={stats()}
+          getTodosForView={getTodosForView}
           handleAdd={handleAdd}
           handleDelete={handleDelete}
           handleToggle={handleToggle}
           handleUpdate={handleUpdate}
           handleUpdateDueDate={handleUpdateDueDate}
+          handleUpdatePriority={handleUpdatePriority}
+          handleUpdateTags={handleUpdateTags}
+          handleUpdateReminder={handleUpdateReminder}
+          handleApplyAppState={handleApplyAppState}
+          handleDeleteTag={handleDeleteTag}
         />
       )}
     </>

@@ -16,9 +16,9 @@
 
 import { onMount } from "solid-js";
 import { createStore, type SetStoreFunction, type Store } from "solid-js/store";
-import { commands, type Todo } from "./bindings";
+import { commands, type AppState } from "./bindings";
 
-export type { Todo };
+export type { AppState };
 
 // 这个函数使用 Tauri 储存数据
 export function createTauriStore<T extends object>(
@@ -28,7 +28,7 @@ export function createTauriStore<T extends object>(
   // 在第一次打开应用时从 Rust 获取数据
   onMount(async () => {
     try {
-      const result = await commands.loadTodos();
+      const result = await commands.loadAppState();
       if (result.status === "ok") {
         // 用从 Rust 获取的数据替换默认的空白数据
         setState(result.data as T);

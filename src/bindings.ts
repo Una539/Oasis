@@ -4,20 +4,76 @@ import { invoke as __TAURI_INVOKE } from "@tauri-apps/api/core";
 
 /** Commands */
 export const commands = {
-	addTodo: (content: string, dueDate: string | null) => typedError<Todo[], string>(__TAURI_INVOKE("add_todo", { content, dueDate })),
-	deleteTodo: (id: string) => typedError<Todo[], string>(__TAURI_INVOKE("delete_todo", { id })),
-	toggleTodo: (id: string) => typedError<Todo[], string>(__TAURI_INVOKE("toggle_todo", { id })),
-	updateTodoContent: (id: string, content: string) => typedError<Todo[], string>(__TAURI_INVOKE("update_todo_content", { id, content })),
-	updateTodoDueDate: (id: string, dueDate: string | null) => typedError<Todo[], string>(__TAURI_INVOKE("update_todo_due_date", { id, dueDate })),
-	loadTodos: () => typedError<Todo[], string>(__TAURI_INVOKE("load_todos")),
+	loadAppState: () => typedError<AppState, string>(__TAURI_INVOKE("load_app_state")),
+	addTodo: (content: string, dueDate: string | null, tagIds: string[]) => typedError<AppState, string>(__TAURI_INVOKE("add_todo", { content, dueDate, tagIds })),
+	deleteTodo: (id: string) => typedError<AppState, string>(__TAURI_INVOKE("delete_todo", { id })),
+	toggleTodo: (id: string, completedAt: string | null) => typedError<AppState, string>(__TAURI_INVOKE("toggle_todo", { id, completedAt })),
+	updateTodoContent: (id: string, content: string) => typedError<AppState, string>(__TAURI_INVOKE("update_todo_content", { id, content })),
+	updateTodoDueDate: (id: string, dueDate: string | null) => typedError<AppState, string>(__TAURI_INVOKE("update_todo_due_date", { id, dueDate })),
+	updateTodoPriority: (id: string, priority: number) => typedError<AppState, string>(__TAURI_INVOKE("update_todo_priority", { id, priority })),
+	updateTodoTags: (id: string, tagIds: string[]) => typedError<AppState, string>(__TAURI_INVOKE("update_todo_tags", { id, tagIds })),
+	updateTodoReminder: (id: string, reminderEnabled: boolean) => typedError<AppState, string>(__TAURI_INVOKE("update_todo_reminder", { id, reminderEnabled })),
+	markTodoNotified: (id: string, notifiedOn: string) => typedError<AppState, string>(__TAURI_INVOKE("mark_todo_notified", { id, notifiedOn })),
+	analyzeTagInput: (value: string, caret: number, selectedTagIds: string[]) => typedError<TagInputAnalysis, string>(__TAURI_INVOKE("analyze_tag_input", { value, caret, selectedTagIds })),
+	applyTagSuggestion: (value: string, selectedTagIds: string[], tokenStart: number, tokenEnd: number, action: TagSuggestionAction) => typedError<ApplyTagSuggestionResult, string>(__TAURI_INVOKE("apply_tag_suggestion", { value, selectedTagIds, tokenStart, tokenEnd, action })),
+	createTag: (name: string, color: string) => typedError<AppState, string>(__TAURI_INVOKE("create_tag", { name, color })),
+	updateTag: (id: string, name: string, color: string) => typedError<AppState, string>(__TAURI_INVOKE("update_tag", { id, name, color })),
+	deleteTag: (id: string) => typedError<AppState, string>(__TAURI_INVOKE("delete_tag", { id })),
 };
 
 /* Types */
+export type AppState = {
+	schema_version?: number,
+	todos?: Todo[],
+	tags?: Tag[],
+};
+
+export type ApplyTagSuggestionResult = {
+	value: string,
+	tag_ids: string[],
+	caret: number,
+	app_state: AppState,
+};
+
+export type MentionToken = {
+	start: number,
+	end: number,
+	query: string,
+};
+
+export type Tag = {
+	id: string,
+	name: string,
+	color: string,
+};
+
+export type TagInputAnalysis = {
+	active_mention: MentionToken | null,
+	suggestions: TagSuggestion[],
+};
+
+export type TagSuggestion = {
+	kind: string,
+	name: string,
+	tag: Tag | null,
+};
+
+export type TagSuggestionAction = {
+	kind: string,
+	name: string,
+	tag_id: string | null,
+};
+
 export type Todo = {
 	id: string,
 	content: string,
 	done: boolean,
 	due_date: string | null,
+	priority?: number,
+	tag_ids?: string[],
+	reminder_enabled?: boolean,
+	completed_at?: string | null,
+	last_notified_on?: string | null,
 };
 
 /* Tauri Specta runtime */

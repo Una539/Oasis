@@ -16,16 +16,25 @@
 
 import { createSignal, Show } from "solid-js";
 import { X } from "lucide-solid";
-import { type Todo } from "../hooks/useTodos";
+import { type AppState as GeneratedAppState } from "../bindings";
+import { type Tag, type Todo } from "../hooks/useTodos";
 import { getTodayDateString } from "../utils/date";
+import { getPriorityColor } from "../utils/tags";
 import DueDateChip from "./DueDateChip";
+import TaggableTextInput from "./TaggableTextInput";
+import TodoMetaControls from "./TodoMetaControls";
 
 interface DesktopTodoItemProps {
   todo: Todo;
+  tags: Tag[];
   onToggle: (id: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onUpdate: (id: string, content: string) => Promise<void>;
   onUpdateDueDate: (id: string, dueDate: string | null) => Promise<void>;
+  onUpdatePriority: (id: string, priority: number) => Promise<void>;
+  onUpdateTags: (id: string, tagIds: string[]) => Promise<void>;
+  onUpdateReminder: (id: string, reminderEnabled: boolean) => Promise<void>;
+  onAppStateChange: (state: GeneratedAppState) => void;
   canReschedule: boolean;
 }
 
@@ -44,39 +53,57 @@ export default function DesktopTodoItem(props: DesktopTodoItemProps) {
     setDraftDueDate(open ? getTodayDateString() : "");
   };
 
+  const dueDateClass = () => {
+    if (!props.todo.due_date) return "due-date-badge";
+    const today = getTodayDateString();
+    if (props.todo.due_date === today) return "due-date-badge today";
+    if (!props.todo.done && props.todo.due_date < today) return "due-date-badge overdue";
+    return "due-date-badge";
+  };
+
   return (
     <div
       class="group"
       flex
       items-center
       bg-surface
-      rounded-desktop
+      rounded="[5px]"
       border
       border-transparent
-      overflow-hidden
       transition="all duration-200 ease"
       relative
       z-1
-      mb-2
+      mb-3
       hover="border-border shadow-md"
+      style={{ "--priority-color": getPriorityColor(props.todo.priority) }}
     >
+      <div class="priority-stripe" />
       <input
         type="checkbox"
         class="todo-checkbox"
         checked={props.todo.done}
         onChange={() => props.onToggle(props.todo.id)}
       />
-      <input
-        type="text"
-        class={`todo-text-input ${props.todo.done ? "done" : ""}`}
+      <TaggableTextInput
         value={props.todo.content}
-        onChange={(e) => props.onUpdate(props.todo.id, e.currentTarget.value)}
+        tags={props.tags}
+        selectedTagIds={props.todo.tag_ids}
+        tagPlacement="below"
+        done={props.todo.done}
+        onValueChange={() => undefined}
+        onCommit={(content) => props.onUpdate(props.todo.id, content)}
+        onTagIdsChange={(tagIds) => props.onUpdateTags(props.todo.id, tagIds)}
+        onAppStateChange={props.onAppStateChange}
+      />
+      <TodoMetaControls
+        todo={props.todo}
+        onUpdatePriority={props.onUpdatePriority}
+        onUpdateReminder={props.onUpdateReminder}
       />
       {props.todo.due_date && (
         <span
+          class={dueDateClass()}
           text="[12px]"
-          color-text-secondary
-          mr-3
           whitespace-nowrap
           flex-shrink-0
         >
@@ -100,7 +127,7 @@ export default function DesktopTodoItem(props: DesktopTodoItemProps) {
         />
       </Show>
       <button
-        class="hidden group-hover:flex"
+        class="todo-delete-button"
         items-center
         justify-center
         w-11
