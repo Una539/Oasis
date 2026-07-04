@@ -35,6 +35,10 @@
 
 - `tsconfig.json` uses **strict** mode plus `noUnusedLocals: true` and `noUnusedParameters: true`. Unused variables will fail typecheck.
 - JSX import source is `solid-js` (not React).
+- Prefer **Ark UI for Solid** (`@ark-ui/solid`) for new accessible interactive UI primitives such as select, dialog, popover, combobox, tabs, accordion, menu, tooltip, and similar controls.
+- Before adding or changing Ark UI components, consult the local `llms-solid.txt` reference and/or the configured Ark UI MCP server for current Solid-specific APIs, props, anatomy, and examples.
+- Ark UI is headless; keep presentation in existing CSS/UnoCSS patterns, using Ark UI part/state attributes (`data-scope`, `data-part`, `data-state`, etc.) or explicit classes as appropriate.
+- Do not hand-roll keyboard interaction, focus management, positioning, or ARIA behavior when an Ark UI Solid component covers the use case.
 
 ## Tooling Gaps
 

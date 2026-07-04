@@ -33,11 +33,11 @@ android {
     }
 
     compileSdk = 36
-    namespace = "com.oasis.app"
+    namespace = "com.uno.oasis"
 
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
-        applicationId = "com.oasis.app"
+        applicationId = "com.uno.oasis"
         minSdk = 24
         targetSdk = 36
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()

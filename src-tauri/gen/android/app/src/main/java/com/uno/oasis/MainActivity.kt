@@ -1,4 +1,4 @@
-package com.oasis.app
+package com.uno.oasis
 
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge

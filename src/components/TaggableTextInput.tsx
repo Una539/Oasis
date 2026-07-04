@@ -14,6 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import {
+  Listbox,
+  createListCollection,
+  type ListboxHighlightChangeDetails,
+  type ListboxValueChangeDetails,
+} from "@ark-ui/solid/listbox";
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import {
   commands,
@@ -38,10 +44,22 @@ interface TaggableTextInputProps {
   onAppStateChange: (state: GeneratedAppState) => void;
 }
 
+interface SuggestionItem {
+  label: string;
+  value: string;
+  shortcut: string;
+  color: string;
+  suggestion: TagSuggestion;
+}
+
 const EMPTY_ANALYSIS: TagInputAnalysis = {
   active_mention: null,
   suggestions: [],
 };
+
+function suggestionValue(suggestion: TagSuggestion, index: number) {
+  return `${suggestion.kind}:${suggestion.tag?.id ?? suggestion.name}:${index}`;
+}
 
 export default function TaggableTextInput(props: TaggableTextInputProps) {
   const [draft, setDraft] = createSignal(props.value);
@@ -61,6 +79,21 @@ export default function TaggableTextInput(props: TaggableTextInputProps) {
   );
 
   const suggestions = createMemo(() => analysis().suggestions);
+  const suggestionItems = createMemo<SuggestionItem[]>(() =>
+    suggestions().map((suggestion, index) => ({
+      label: `${suggestion.kind === "create" ? "创建 " : ""}@${suggestion.name}`,
+      value: suggestionValue(suggestion, index),
+      shortcut: suggestion.kind === "create" ? "Enter" : "Tab",
+      color: suggestion.tag?.color ?? "#6f7770",
+      suggestion,
+    })),
+  );
+  const suggestionCollection = createMemo(() =>
+    createListCollection<SuggestionItem>({
+      items: suggestionItems(),
+    }),
+  );
+  const activeSuggestionValue = () => suggestionItems()[activeIndex()]?.value;
 
   const updateAnalysis = async (
     value = inputRef?.value,
@@ -162,6 +195,27 @@ export default function TaggableTextInput(props: TaggableTextInputProps) {
     }
   };
 
+  const handleHighlightChange = (
+    details: ListboxHighlightChangeDetails<SuggestionItem>,
+  ) => {
+    const index = suggestionItems().findIndex(
+      (item) => item.value === details.highlightedValue,
+    );
+    if (index >= 0) {
+      setActiveIndex(index);
+    }
+  };
+
+  const handleSuggestionValueChange = (
+    details: ListboxValueChangeDetails<SuggestionItem>,
+  ) => {
+    const value = details.value[0];
+    const item = suggestionItems().find((item) => item.value === value);
+    if (item) {
+      void selectSuggestion(item.suggestion);
+    }
+  };
+
   return (
     <div
       class={
@@ -211,31 +265,37 @@ export default function TaggableTextInput(props: TaggableTextInputProps) {
       </Show>
 
       <Show when={analysis().active_mention && suggestions().length > 0}>
-        <div class="tag-suggestion-popover">
-          <For each={suggestions()}>
-            {(suggestion, index) => (
-              <button
-                type="button"
-                class={
-                  activeIndex() === index()
-                    ? "tag-suggestion-item active"
-                    : "tag-suggestion-item"
-                }
-                style={{ "--tag-color": suggestion.tag?.color ?? "#6f7770" }}
-                onMouseDown={(event) => {
-                  event.preventDefault();
-                  if (blurTimer) clearTimeout(blurTimer);
-                }}
-                onClick={() => void selectSuggestion(suggestion)}
-              >
-                <span>
-                  {suggestion.kind === "create" ? "创建 " : ""}@{suggestion.name}
-                </span>
-                <small>{suggestion.kind === "create" ? "Enter" : "Tab"}</small>
-              </button>
-            )}
-          </For>
-        </div>
+        <Listbox.Root
+          class="tag-suggestion-popover"
+          collection={suggestionCollection()}
+          highlightedValue={activeSuggestionValue()}
+          value={[]}
+          onHighlightChange={handleHighlightChange}
+          onValueChange={handleSuggestionValueChange}
+          loopFocus
+        >
+          <Listbox.Content class="tag-suggestion-listbox-content">
+            <For each={suggestionCollection().items}>
+              {(item) => (
+                <Listbox.Item
+                  class="tag-suggestion-item"
+                  item={item}
+                  style={{ "--tag-color": item.color }}
+                  highlightOnHover
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    if (blurTimer) clearTimeout(blurTimer);
+                  }}
+                >
+                  <Listbox.ItemText>
+                    <span>{item.label}</span>
+                  </Listbox.ItemText>
+                  <small>{item.shortcut}</small>
+                </Listbox.Item>
+              )}
+            </For>
+          </Listbox.Content>
+        </Listbox.Root>
       </Show>
     </div>
   );

@@ -5,3 +5,5 @@ dist
 *.keystore
 keystore.properties
 ai/
+llms-solid.txt
+src-tauri/gen/android/.idea/codeStyles/

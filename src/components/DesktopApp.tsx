@@ -102,7 +102,7 @@ export default function DesktopApp(props: DesktopAppProps) {
 
   // 当前选中的分区（默认显示"今天"分区）
   const [currentView, setCurrentView] = createSignal<DesktopViewKey>("today");
-  const [selectedTagId, setSelectedTagId] = createSignal<string | null>(null);
+  const [selectedTagIds, setSelectedTagIds] = createSignal<string[]>([]);
 
   // 用户拖拽设定的目标宽度（可能超过最大值，由 sidebarWidth 计算时限制）
   const [targetWidth, setTargetWidth] = createSignal(DEFAULT_SIDEBAR_WIDTH);
@@ -196,16 +196,18 @@ export default function DesktopApp(props: DesktopAppProps) {
     const view = currentView();
     if (view === "stats") return [];
 
-    const tagId = selectedTagId();
+    const tagIds = selectedTagIds();
     const todos = props.partitions[view];
-    if (!tagId) return todos;
-    return todos.filter((todo) => todo.tag_ids.includes(tagId));
+    if (tagIds.length === 0) return todos;
+    return todos.filter((todo) =>
+      tagIds.every((tagId) => todo.tag_ids.includes(tagId)),
+    );
   };
 
   const currentEmptyMessage = () => {
     const view = currentView();
     if (view === "stats") return "";
-    if (selectedTagId()) return "这个标签筛选下还没有待办。";
+    if (selectedTagIds().length > 0) return "这些标签筛选下还没有待办。";
     return EMPTY_MESSAGES[view as CorePartitionKey];
   };
 
@@ -219,7 +221,11 @@ export default function DesktopApp(props: DesktopAppProps) {
   };
 
   const toggleTagFilter = (tagId: string) => {
-    setSelectedTagId((current) => (current === tagId ? null : tagId));
+    setSelectedTagIds((current) =>
+      current.includes(tagId)
+        ? current.filter((id) => id !== tagId)
+        : [...current, tagId],
+    );
     if (currentView() === "stats") {
       setCurrentView("today");
     }
@@ -227,9 +233,7 @@ export default function DesktopApp(props: DesktopAppProps) {
 
   const deleteTag = async (tagId: string) => {
     await props.handleDeleteTag(tagId);
-    if (selectedTagId() === tagId) {
-      setSelectedTagId(null);
-    }
+    setSelectedTagIds((current) => current.filter((id) => id !== tagId));
   };
 
   // ==================== 渲染 ====================
@@ -277,7 +281,7 @@ export default function DesktopApp(props: DesktopAppProps) {
               return (
                 <div
                   class={
-                    selectedTagId() === tag.id
+                    selectedTagIds().includes(tag.id)
                       ? "sidebar-tag-item selected"
                       : "sidebar-tag-item"
                   }

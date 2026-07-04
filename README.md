@@ -124,9 +124,11 @@ pnpm tauri android build
 
 应用数据持久化存储到系统应用数据目录下的 `todos.json` 文件中：
 
-- **Windows**: `%APPDATA%\com.oasis.app\todos.json`
-- **macOS**: `~/Library/Application Support/com.oasis.app/todos.json`
-- **Linux**: `~/.local/share/com.oasis.app/todos.json`
+- **Windows**: `%APPDATA%\com.uno.oasis\todos.json`
+- **macOS**: `~/Library/Application Support/com.uno.oasis/todos.json`
+- **Linux**: `~/.local/share/com.uno.oasis/todos.json`
+
+旧版本的 `com.oasis.app/todos.json` 会在首次启动时自动迁移到新目录。
 
 ## License
 

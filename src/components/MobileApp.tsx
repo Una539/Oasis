@@ -14,7 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { For, Show, createSignal, onCleanup, onMount } from "solid-js";
+import { Drawer, type DrawerOpenChangeDetails } from "@ark-ui/solid/drawer";
+import { For, Index, Show, createMemo, createSignal } from "solid-js";
 import { type AppState as GeneratedAppState } from "../bindings";
 import {
   type CorePartitionKey,
@@ -28,13 +29,14 @@ import MobileTodoItem from "./MobileTodoItem";
 import StatsPanel from "./StatsPanel";
 import {
   Select,
-  createListCollection,
+  createListCollection as createSelectCollection,
   type SelectValueChangeDetails,
 } from "@ark-ui/solid/select";
 
-import { Index, Portal } from "solid-js/web";
+import { Portal } from "solid-js/web";
 import {
   BarChart3Icon,
+  CheckIcon,
   ChevronsUpDownIcon,
   TagsIcon,
   Trash2Icon,
@@ -43,7 +45,15 @@ import {
 
 interface Item {
   label: string;
-  value: ViewKey;
+  value: CorePartitionKey;
+}
+
+interface TagListItem {
+  label: string;
+  value: string;
+  tagId: string;
+  color: string;
+  count: number;
 }
 
 interface MobileAppProps {
@@ -75,65 +85,71 @@ const EMPTY_MESSAGES: Record<CorePartitionKey, string> = {
   archived: "还没有完成记录。",
 };
 
-export default function MobileApp(props: MobileAppProps) {
-  const [currentView, setCurrentView] = createSignal<ViewKey>("today");
-  const [statsOpen, setStatsOpen] = createSignal(false);
-  const [tagOpen, setTagOpen] = createSignal(false);
+const PARTITION_COLLECTION = createSelectCollection<Item>({
+  items: [
+    { label: "今天", value: "today" },
+    { label: "未来", value: "upcoming" },
+    { label: "任意时间", value: "inbox" },
+    { label: "过期", value: "outdated" },
+    { label: "已完成", value: "archived" },
+  ],
+});
 
-  const collection = () =>
-    createListCollection<Item>({
-      items: [
-        { label: "今天", value: "today" },
-        { label: "未来", value: "upcoming" },
-        { label: "任意时间", value: "inbox" },
-        { label: "过期", value: "outdated" },
-        { label: "已完成", value: "archived" },
-      ],
-    });
+export default function MobileApp(props: MobileAppProps) {
+  const [currentView, setCurrentView] = createSignal<CorePartitionKey>("today");
+  const [selectedTagIds, setSelectedTagIds] = createSignal<string[]>([]);
+  const [statsOpen, setStatsOpen] = createSignal(false);
+
+  const tagCollection = createMemo(() =>
+    createSelectCollection<TagListItem>({
+      items: props.tags.map((tag) => {
+        return {
+          label: tag.name,
+          value: tag.id,
+          tagId: tag.id,
+          color: tag.color,
+          count: props
+            .getTodosForView(currentView())
+            .filter((todo) => todo.tag_ids.includes(tag.id)).length,
+        };
+      }),
+    }),
+  );
 
   const handleValueChange = (details: SelectValueChangeDetails<Item>) => {
-    setCurrentView(details.value[0] as ViewKey);
+    setCurrentView(details.value[0] as CorePartitionKey);
+    setSelectedTagIds([]);
+  };
+
+  const handleTagValueChange = (details: SelectValueChangeDetails<TagListItem>) => {
+    setSelectedTagIds(details.value);
+  };
+
+  const handleStatsOpenChange = (details: DrawerOpenChangeDetails) => {
+    setStatsOpen(details.open);
   };
 
   // ---- 计算属性 ----
   // 根据当前分区获取对应的待办列表
   const currentTodos = () => {
-    return props.getTodosForView(currentView());
+    const todos = props.getTodosForView(currentView());
+    const tagIds = selectedTagIds();
+    if (tagIds.length === 0) return todos;
+    return todos.filter((todo) =>
+      tagIds.every((tagId) => todo.tag_ids.includes(tagId)),
+    );
   };
 
   const currentEmptyMessage = () => {
     const view = currentView();
-    if (view.startsWith("tag:")) return "这个标签下还没有待办。";
-    if (view === "stats") return "";
+    if (selectedTagIds().length > 0) return "这些标签下还没有待办。";
     return EMPTY_MESSAGES[view as CorePartitionKey];
-  };
-
-  const handleKeyDown = (event: KeyboardEvent) => {
-    if (event.key === "Escape") {
-      setStatsOpen(false);
-      setTagOpen(false);
-    }
-  };
-
-  const selectTag = (tagId: string) => {
-    setCurrentView(`tag:${tagId}`);
-    setTagOpen(false);
   };
 
   const deleteTag = async (tagId: string) => {
     await props.handleDeleteTag(tagId);
-    if (currentView() === `tag:${tagId}`) {
-      setCurrentView("today");
-    }
+    setSelectedTagIds((current) => current.filter((id) => id !== tagId));
   };
-
-  onMount(() => {
-    window.addEventListener("keydown", handleKeyDown);
-  });
-
-  onCleanup(() => {
-    window.removeEventListener("keydown", handleKeyDown);
-  });
 
   return (
     <main flex flex-col h-full bg-bg>
@@ -150,18 +166,73 @@ export default function MobileApp(props: MobileAppProps) {
         border-b
         border-border
       >
-        <button
-          type="button"
-          class="mobile-header-icon-button"
-          onClick={() => setTagOpen(true)}
-          aria-label="打开标签筛选"
-          title="标签"
+        <Select.Root
+          collection={tagCollection()}
+          value={selectedTagIds()}
+          onValueChange={handleTagValueChange}
+          multiple
+          closeOnSelect={false}
         >
-          <TagsIcon size={19} />
-        </button>
+          <Select.Control>
+            <Select.Trigger
+              class="mobile-header-icon-button mobile-tag-select-trigger"
+              aria-label="打开标签筛选"
+              title="标签"
+            >
+              <TagsIcon size={19} />
+              <Show when={selectedTagIds().length > 0}>
+                <span class="mobile-tag-select-badge">{selectedTagIds().length}</span>
+              </Show>
+            </Select.Trigger>
+          </Select.Control>
+          <Portal>
+            <Select.Positioner class="mobile-tag-select-positioner">
+              <Select.Content class="select-content mobile-tag-select-content p-1">
+                <Show
+                  when={props.tags.length > 0}
+                  fallback={<div class="mobile-tag-empty">还没有标签。</div>}
+                >
+                  <Select.ItemGroup>
+                    <Index each={tagCollection().items}>
+                      {(item) => (
+                        <Select.Item
+                          class="select-item mobile-tag-select-item px-2 py-2 text-sm rounded cursor-pointer flex items-center gap-2 transition-colors duration-150"
+                          item={item()}
+                          style={{ "--tag-color": item().color }}
+                        >
+                          <Select.ItemText class="mobile-tag-select-text">
+                            <span class="sidebar-tag-label">{item().label}</span>
+                            <span class="mobile-tag-count">{item().count}</span>
+                          </Select.ItemText>
+                          <Select.ItemIndicator class="select-item-indicator mobile-tag-select-check">
+                            <CheckIcon size={15} />
+                          </Select.ItemIndicator>
+                          <button
+                            type="button"
+                            class="mobile-tag-delete"
+                            onPointerDown={(event) => event.stopPropagation()}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void deleteTag(item().tagId);
+                            }}
+                            aria-label={`删除标签 ${item().label}`}
+                            title="删除标签"
+                          >
+                            <Trash2Icon size={15} />
+                          </button>
+                        </Select.Item>
+                      )}
+                    </Index>
+                  </Select.ItemGroup>
+                </Show>
+              </Select.Content>
+            </Select.Positioner>
+          </Portal>
+          <Select.HiddenSelect />
+        </Select.Root>
         <div class="mobile-select-wrapper">
           <Select.Root
-            collection={collection()}
+            collection={PARTITION_COLLECTION}
             value={[currentView()]}
             onValueChange={handleValueChange}
           >
@@ -179,7 +250,7 @@ export default function MobileApp(props: MobileAppProps) {
               <Select.Positioner class="w-[55%]">
                 <Select.Content class="select-content p-1">
                   <Select.ItemGroup>
-                    <Index each={collection().items}>
+                    <Index each={PARTITION_COLLECTION.items}>
                       {(item) => (
                         <Select.Item
                           class="select-item px-2 py-2 text-sm rounded cursor-pointer flex items-center justify-between gap-2 transition-colors duration-150"
@@ -242,117 +313,31 @@ export default function MobileApp(props: MobileAppProps) {
                 onUpdateTags={props.handleUpdateTags}
                 onUpdateReminder={props.handleUpdateReminder}
                 onAppStateChange={props.handleApplyAppState}
-                canReschedule={currentView() === "outdated"}
+                canReschedule={selectedTagIds().length === 0 && currentView() === "outdated"}
               />
             )}
           </For>
         </div>
       </div>
 
-      <Show when={statsOpen()}>
-        <div
-          class="mobile-stats-scrim"
-          onClick={() => setStatsOpen(false)}
-          role="presentation"
-        >
-          <aside
-            class="mobile-stats-drawer"
-            role="dialog"
-            aria-modal="true"
-            aria-label="统计"
-            onClick={(event) => event.stopPropagation()}
-          >
+      <Drawer.Root
+        open={statsOpen()}
+        onOpenChange={handleStatsOpenChange}
+        swipeDirection="end"
+      >
+        <Drawer.Backdrop class="mobile-stats-scrim" />
+        <Drawer.Positioner class="mobile-stats-drawer-positioner">
+          <Drawer.Content class="mobile-stats-drawer">
             <header class="mobile-stats-drawer-header">
-              <span>统计</span>
-              <button
-                type="button"
-                class="mobile-stats-close"
-                onClick={() => setStatsOpen(false)}
-                aria-label="关闭统计"
-                title="关闭"
-              >
+              <Drawer.Title>统计</Drawer.Title>
+              <Drawer.CloseTrigger class="mobile-stats-close" title="关闭">
                 <XIcon size={18} />
-              </button>
+              </Drawer.CloseTrigger>
             </header>
             <StatsPanel stats={props.stats} />
-          </aside>
-        </div>
-      </Show>
-
-      <Show when={tagOpen()}>
-        <div
-          class="mobile-stats-scrim"
-          onClick={() => setTagOpen(false)}
-          role="presentation"
-        >
-          <aside
-            class="mobile-tag-drawer"
-            role="dialog"
-            aria-modal="true"
-            aria-label="标签筛选"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <header class="mobile-stats-drawer-header">
-              <span>标签</span>
-              <button
-                type="button"
-                class="mobile-stats-close"
-                onClick={() => setTagOpen(false)}
-                aria-label="关闭标签筛选"
-                title="关闭"
-              >
-                <XIcon size={18} />
-              </button>
-            </header>
-            <Show
-              when={props.tags.length > 0}
-              fallback={<div class="mobile-tag-empty">还没有标签。</div>}
-            >
-              <div class="mobile-tag-list">
-                <For each={props.tags}>
-                  {(tag) => {
-                    const view = `tag:${tag.id}` as const;
-                    const count = () =>
-                      props.getTodosForView(view).filter((todo) => !todo.done).length;
-                    return (
-                      <div
-                        class={
-                          currentView() === view
-                            ? "mobile-tag-list-item selected"
-                            : "mobile-tag-list-item"
-                        }
-                      >
-                        <button
-                          type="button"
-                          class="mobile-tag-filter"
-                          onClick={() => selectTag(tag.id)}
-                        >
-                          <span
-                            class="sidebar-tag-label"
-                            style={{ "--tag-color": tag.color }}
-                          >
-                            {tag.name}
-                          </span>
-                          <span>{count()}</span>
-                        </button>
-                        <button
-                          type="button"
-                          class="mobile-tag-delete"
-                          onClick={() => void deleteTag(tag.id)}
-                          aria-label={`删除标签 ${tag.name}`}
-                          title="删除标签"
-                        >
-                          <Trash2Icon size={15} />
-                        </button>
-                      </div>
-                    );
-                  }}
-                </For>
-              </div>
-            </Show>
-          </aside>
-        </div>
-      </Show>
+          </Drawer.Content>
+        </Drawer.Positioner>
+      </Drawer.Root>
     </main>
   );
 }

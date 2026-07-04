@@ -332,6 +332,14 @@ body {
   margin-right: 0.25rem;
 }
 
+.date-chip-segment-group {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.08rem;
+  min-width: 0;
+}
+
 .date-chip-segment {
   border: none;
   background: transparent;
@@ -347,6 +355,22 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+.date-chip-segment[data-type="literal"] {
+  width: auto;
+  padding-inline: 0.04rem;
+  color: var(--text-secondary);
+  user-select: none;
+}
+
+.date-chip-segment[data-type="year"] {
+  width: 5ch;
+}
+
+.date-chip-segment[data-type="month"],
+.date-chip-segment[data-type="day"] {
+  width: 3ch;
+}
+
 .date-chip-segment.year {
   width: 5ch;
 }
@@ -359,10 +383,17 @@ body {
   color: var(--text-muted);
 }
 
-.date-chip-segment:focus {
+.date-chip-segment:focus,
+.date-chip-segment[data-focus] {
   background: var(--text);
   color: var(--bg);
   border-radius: 0.45rem;
+}
+
+.date-chip-segment[data-type="literal"]:focus,
+.date-chip-segment[data-type="literal"][data-focus] {
+  background: transparent;
+  color: var(--text-secondary);
 }
 
 .date-chip-separator {
@@ -754,6 +785,31 @@ body {
   transform: scale(0.96);
 }
 
+.mobile-tag-select-trigger {
+  position: relative;
+}
+
+.mobile-tag-select-trigger[data-state="open"] {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.mobile-tag-select-badge {
+  position: absolute;
+  right: 0.35rem;
+  top: 0.35rem;
+  min-width: 1rem;
+  height: 1rem;
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1rem;
+  text-align: center;
+}
+
 .mobile-select-control {
   display: flex;
   align-items: center;
@@ -776,11 +832,23 @@ body {
   position: fixed;
   inset: 0;
   z-index: 300;
-  display: flex;
-  justify-content: flex-start;
   background: rgba(0, 0, 0, 0.28);
   backdrop-filter: blur(3px);
   animation: stats-scrim-in 0.16s ease-out;
+}
+
+.mobile-stats-scrim[data-state="closed"] {
+  animation: stats-scrim-out 0.14s ease-in;
+}
+
+.mobile-stats-drawer-positioner {
+  position: fixed;
+  inset: 0;
+  z-index: 301;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  pointer-events: none;
 }
 
 .mobile-stats-drawer {
@@ -789,22 +857,16 @@ body {
   overflow-y: auto;
   padding: calc(0.9rem + env(safe-area-inset-top, 0px)) 0.9rem
     calc(1rem + env(safe-area-inset-bottom, 0px));
-  border-right: 1px solid var(--border);
+  border-left: 1px solid var(--border);
   background: var(--bg);
-  box-shadow: 24px 0 54px rgba(0, 0, 0, 0.2);
-  animation: stats-drawer-in 0.2s cubic-bezier(0.2, 0.85, 0.25, 1);
+  box-shadow: -24px 0 54px rgba(0, 0, 0, 0.2);
+  outline: none;
+  pointer-events: auto;
+  animation: stats-drawer-in-right 0.2s cubic-bezier(0.2, 0.85, 0.25, 1);
 }
 
-.mobile-tag-drawer {
-  width: min(82vw, 21rem);
-  height: 100%;
-  overflow-y: auto;
-  padding: calc(0.9rem + env(safe-area-inset-top, 0px)) 0.9rem
-    calc(1rem + env(safe-area-inset-bottom, 0px));
-  border-right: 1px solid var(--border);
-  background: var(--bg);
-  box-shadow: 24px 0 54px rgba(0, 0, 0, 0.2);
-  animation: stats-drawer-in 0.2s cubic-bezier(0.2, 0.85, 0.25, 1);
+.mobile-stats-drawer[data-state="closed"] {
+  animation: stats-drawer-out-right 0.16s ease-in;
 }
 
 .mobile-stats-drawer-header {
@@ -836,59 +898,44 @@ body {
   color: var(--text);
 }
 
-.mobile-tag-list {
-  display: flex;
-  flex-direction: row;
-  gap: 0.45rem;
-  max-width: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding-bottom: 0.25rem;
-  scroll-snap-type: x proximity;
-  -webkit-overflow-scrolling: touch;
+.mobile-tag-select-positioner {
+  width: min(19rem, calc(100vw - 2rem));
 }
 
-.mobile-tag-list::-webkit-scrollbar {
-  height: 0.35rem;
+.mobile-tag-select-content {
+  max-height: min(var(--available-height, 300px), 22rem);
 }
 
-.mobile-tag-list::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--text-muted) 38%, transparent);
-}
-
-.mobile-tag-list-item {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  flex: 0 0 min(12rem, 72vw);
-  max-width: min(12rem, 72vw);
-  min-width: 0;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface);
+.mobile-tag-select-item {
   color: var(--text-secondary);
-  scroll-snap-align: start;
 }
 
-.mobile-tag-list-item.selected {
-  border-color: color-mix(in srgb, var(--text) 28%, var(--border));
-  background: var(--surface-hover);
+.mobile-tag-select-item[data-state="checked"] {
   color: var(--text);
+  font-weight: 500;
 }
 
-.mobile-tag-filter {
+.mobile-tag-select-text {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex: 1 1 auto;
   min-width: 0;
-  padding: 0.72rem 0.75rem;
-  border: none;
-  background: transparent;
   color: inherit;
-  cursor: pointer;
   text-align: left;
+}
+
+.mobile-tag-select-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  flex: 0 0 1.1rem;
+}
+
+.mobile-tag-count {
+  flex-shrink: 0;
+  margin-left: 0.45rem;
 }
 
 .mobile-tag-delete {
@@ -928,12 +975,39 @@ body {
   }
 }
 
+@keyframes stats-scrim-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
 @keyframes stats-drawer-in {
   from {
     transform: translateX(-100%);
   }
   to {
     transform: translateX(0);
+  }
+}
+
+@keyframes stats-drawer-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translate3d(var(--drawer-translate-x, 0), var(--drawer-translate-y, 0), 0);
+  }
+}
+
+@keyframes stats-drawer-out-right {
+  from {
+    transform: translate3d(var(--drawer-translate-x, 0), var(--drawer-translate-y, 0), 0);
+  }
+  to {
+    transform: translateX(100%);
   }
 }
 
@@ -1166,6 +1240,12 @@ body {
   animation: tag-suggest-in 0.12s ease-out;
 }
 
+.tag-suggestion-listbox-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
 .tag-suggestion-item {
   display: flex;
   align-items: center;
@@ -1192,8 +1272,13 @@ body {
   flex-shrink: 0;
 }
 
-.tag-suggestion-item span {
+.tag-suggestion-item [data-part="item-text"] {
   flex: 1;
+  min-width: 0;
+}
+
+.tag-suggestion-item span {
+  display: block;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1206,7 +1291,8 @@ body {
 }
 
 .tag-suggestion-item:hover,
-.tag-suggestion-item.active {
+.tag-suggestion-item[data-highlighted],
+.tag-suggestion-item[data-selected] {
   background: var(--surface-hover);
   transform: translateY(-1px);
 }

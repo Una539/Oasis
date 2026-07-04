@@ -17,7 +17,7 @@
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 use tauri::Manager;
@@ -31,6 +31,8 @@ use crate::input_parser::{
 const SCHEMA_VERSION: u32 = 2;
 const DEFAULT_PRIORITY: u8 = 3;
 const DEFAULT_TAG_COLOR: &str = "#d97757";
+const STORAGE_FILE: &str = "todos.json";
+const LEGACY_IDENTIFIER: &str = "com.oasis.app";
 
 static ID_COUNTER: AtomicU64 = AtomicU64::new(0);
 
@@ -103,7 +105,14 @@ pub fn get_storage_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
         .path()
         .app_data_dir()
         .map_err(|e| format!("无法获取数据目录: {}", e))?;
-    Ok(dir.join("todos.json"))
+    Ok(dir.join(STORAGE_FILE))
+}
+
+fn get_legacy_storage_path(current_path: &Path) -> Option<PathBuf> {
+    let current_dir = current_path.parent()?;
+    let app_data_root = current_dir.parent()?;
+
+    Some(app_data_root.join(LEGACY_IDENTIFIER).join(STORAGE_FILE))
 }
 
 fn normalize_todo(todo: &mut Todo) {
@@ -164,6 +173,23 @@ fn load_from_disk(path: &PathBuf) -> Result<AppState, String> {
     };
 
     Ok(normalize_state(state))
+}
+
+fn load_from_storage(app: &AppHandle) -> Result<AppState, String> {
+    let path = get_storage_path(app)?;
+    if path.exists() {
+        return load_from_disk(&path);
+    }
+
+    if let Some(legacy_path) = get_legacy_storage_path(&path) {
+        if legacy_path != path && legacy_path.exists() {
+            let state = load_from_disk(&legacy_path)?;
+            save_to_disk(&path, &state)?;
+            return Ok(state);
+        }
+    }
+
+    load_from_disk(&path)
 }
 
 pub fn save_to_disk(path: &PathBuf, state: &AppState) -> Result<(), String> {
@@ -246,8 +272,7 @@ pub async fn load_app_state(
 
     match &*state {
         None => {
-            let path = get_storage_path(&app)?;
-            let loaded = load_from_disk(&path)?;
+            let loaded = load_from_storage(&app)?;
             *state = Some(loaded.clone());
             Ok(loaded)
         }
