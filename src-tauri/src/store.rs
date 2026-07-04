@@ -24,11 +24,11 @@ use tauri::Manager;
 use tauri::{AppHandle, State};
 
 use crate::input_parser::{
-    build_tag_input_analysis, parse_content_tags, remove_mention_from_value,
-    ApplyTagSuggestionResult, TagInputAnalysis, TagSuggestionAction,
+    build_tag_input_analysis, remove_mention_from_value, ApplyTagSuggestionResult,
+    TagInputAnalysis, TagSuggestionAction,
 };
 
-const SCHEMA_VERSION: u32 = 2;
+const SCHEMA_VERSION: u32 = 3;
 const DEFAULT_PRIORITY: u8 = 3;
 const DEFAULT_TAG_COLOR: &str = "#d97757";
 const STORAGE_FILE: &str = "todos.json";
@@ -58,6 +58,8 @@ pub struct Todo {
     pub id: String,
     pub content: String,
     pub done: bool,
+    #[serde(default)]
+    pub planned_date: Option<String>,
     pub due_date: Option<String>,
     #[serde(default = "default_priority")]
     pub priority: u8,
@@ -86,6 +88,13 @@ pub struct AppState {
     pub todos: Vec<Todo>,
     #[serde(default)]
     pub tags: Vec<Tag>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct FocusRouteRecommendation {
+    pub target_view: String,
+    pub message: String,
+    pub action_label: String,
 }
 
 #[derive(Debug)]
@@ -125,6 +134,88 @@ fn normalize_todo(todo: &mut Todo) {
     if !todo.done {
         todo.completed_at = None;
     }
+}
+
+fn is_today_focus_todo(todo: &Todo, today: &str) -> bool {
+    !todo.done
+        && (todo
+            .planned_date
+            .as_deref()
+            .is_some_and(|planned_date| planned_date <= today)
+            || todo
+                .due_date
+                .as_deref()
+                .is_some_and(|due_date| due_date <= today))
+}
+
+fn is_upcoming_focus_todo(todo: &Todo, today: &str) -> bool {
+    !todo.done
+        && !is_today_focus_todo(todo, today)
+        && (todo
+            .planned_date
+            .as_deref()
+            .is_some_and(|planned_date| planned_date > today)
+            || todo
+                .due_date
+                .as_deref()
+                .is_some_and(|due_date| due_date > today))
+}
+
+fn is_inbox_focus_todo(todo: &Todo) -> bool {
+    !todo.done && todo.planned_date.is_none() && todo.due_date.is_none()
+}
+
+fn build_focus_route_recommendation(
+    state: &AppState,
+    current_view: &str,
+    today: &str,
+) -> Option<FocusRouteRecommendation> {
+    let today_count = state
+        .todos
+        .iter()
+        .filter(|todo| is_today_focus_todo(todo, today))
+        .count();
+    if today_count > 0 {
+        return None;
+    }
+
+    let upcoming_count = state
+        .todos
+        .iter()
+        .filter(|todo| is_upcoming_focus_todo(todo, today))
+        .count();
+    let (target_view, message, action_label) = if upcoming_count > 0 {
+        (
+            "upcoming",
+            "今日清空了。看看以后？",
+            "去以后",
+        )
+    } else {
+        let inbox_count = state
+            .todos
+            .iter()
+            .filter(|todo| is_inbox_focus_todo(todo))
+            .count();
+        if inbox_count > 0 {
+            (
+                "inbox",
+                "安排好的都做完了。看看灵感？",
+                "去灵感",
+            )
+        } else {
+            ("today", "都清完了，回到今日。", "回今日")
+        }
+    };
+
+    if current_view == target_view {
+        return None;
+    }
+
+    Some(FocusRouteRecommendation {
+        target_view: target_view.to_string(),
+        message: message.to_string(),
+        action_label: action_label.to_string(),
+    })
 }
 
 fn normalize_state(mut state: AppState) -> AppState {
@@ -211,25 +302,6 @@ fn state_from_cache<'a>(
     cache.state.lock().map_err(|e| e.to_string())
 }
 
-fn tag_id_for_name(state: &mut AppState, name: &str) -> String {
-    if let Some(existing) = state
-        .tags
-        .iter()
-        .find(|tag| tag.name.eq_ignore_ascii_case(name))
-    {
-        return existing.id.clone();
-    }
-
-    let tag = Tag {
-        id: generate_id("tag"),
-        name: name.to_string(),
-        color: DEFAULT_TAG_COLOR.to_string(),
-    };
-    let id = tag.id.clone();
-    state.tags.push(tag);
-    id
-}
-
 fn normalize_tag_ids(state: &AppState, tag_ids: Vec<String>) -> Vec<String> {
     let known_tag_ids: std::collections::HashSet<&str> =
         state.tags.iter().map(|tag| tag.id.as_str()).collect();
@@ -249,17 +321,8 @@ fn parse_content_and_tags(
     content: String,
     base_tag_ids: Vec<String>,
 ) -> (String, Vec<String>) {
-    let parsed = parse_content_tags(&content);
-    let mut tag_ids = normalize_tag_ids(state, base_tag_ids);
-
-    for name in parsed.tag_names {
-        let tag_id = tag_id_for_name(state, &name);
-        if !tag_ids.iter().any(|id| id == &tag_id) {
-            tag_ids.push(tag_id);
-        }
-    }
-
-    (parsed.content, tag_ids)
+    let tag_ids = normalize_tag_ids(state, base_tag_ids);
+    (content.trim().to_string(), tag_ids)
 }
 
 #[tauri::command]
@@ -286,8 +349,8 @@ pub async fn add_todo(
     app: AppHandle,
     cache: State<'_, TodoCache>,
     content: String,
+    planned_date: Option<String>,
     due_date: Option<String>,
-    tag_ids: Vec<String>,
 ) -> Result<AppState, String> {
     let id = generate_id("todo");
 
@@ -298,7 +361,7 @@ pub async fn add_todo(
         todos: vec![],
         tags: vec![],
     });
-    let (content, tag_ids) = parse_content_and_tags(state, content, tag_ids);
+    let (content, tag_ids) = parse_content_and_tags(state, content, vec![]);
     if content.trim().is_empty() {
         return Err("待办内容不能为空".to_string());
     }
@@ -307,6 +370,7 @@ pub async fn add_todo(
         id,
         content,
         done: false,
+        planned_date,
         due_date,
         priority: DEFAULT_PRIORITY,
         tag_ids,
@@ -317,6 +381,26 @@ pub async fn add_todo(
 
     save_current_state(&app, state)?;
     Ok(state.clone())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn check_focus_route(
+    cache: State<'_, TodoCache>,
+    current_view: String,
+    today: String,
+) -> Result<Option<FocusRouteRecommendation>, String> {
+    let state_guard = state_from_cache(&cache)?;
+
+    let Some(state) = &*state_guard else {
+        return Ok(None);
+    };
+
+    Ok(build_focus_route_recommendation(
+        state,
+        &current_view,
+        &today,
+    ))
 }
 
 #[tauri::command]
@@ -390,6 +474,30 @@ pub async fn update_todo_content(
     if let Some(todo) = state.todos.iter_mut().find(|todo| todo.id == id) {
         todo.content = content;
         todo.tag_ids = tag_ids;
+    }
+
+    save_current_state(&app, state)?;
+    Ok(state.clone())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn update_todo_planned_date(
+    app: AppHandle,
+    cache: State<'_, TodoCache>,
+    id: String,
+    planned_date: Option<String>,
+) -> Result<AppState, String> {
+    let mut state_guard = state_from_cache(&cache)?;
+
+    let state = state_guard.get_or_insert_with(|| AppState {
+        schema_version: SCHEMA_VERSION,
+        todos: vec![],
+        tags: vec![],
+    });
+
+    if let Some(todo) = state.todos.iter_mut().find(|t| t.id == id) {
+        todo.planned_date = planned_date;
     }
 
     save_current_state(&app, state)?;
@@ -705,8 +813,8 @@ pub async fn delete_tag(
 #[cfg(test)]
 mod tests {
     use super::{
-        load_from_disk, normalize_state, parse_content_and_tags, save_to_disk, AppState, Tag, Todo,
-        SCHEMA_VERSION,
+        build_focus_route_recommendation, load_from_disk, normalize_state,
+        parse_content_and_tags, save_to_disk, AppState, Tag, Todo, SCHEMA_VERSION,
     };
 
     fn legacy_todo() -> Todo {
@@ -714,6 +822,7 @@ mod tests {
             id: "".to_string(),
             content: "旧任务".to_string(),
             done: false,
+            planned_date: None,
             due_date: None,
             priority: 99,
             tag_ids: vec!["missing".to_string()],
@@ -752,6 +861,7 @@ mod tests {
 
         assert_eq!(state.schema_version, SCHEMA_VERSION);
         assert_eq!(state.todos.len(), 1);
+        assert_eq!(state.todos[0].planned_date, None);
         assert_eq!(state.todos[0].priority, 3);
         assert!(state.tags.is_empty());
     }
@@ -775,7 +885,7 @@ mod tests {
     }
 
     #[test]
-    fn parses_tags_when_saving_content() {
+    fn keeps_at_mentions_as_plain_content_when_saving() {
         let mut state = AppState {
             schema_version: SCHEMA_VERSION,
             todos: vec![],
@@ -789,15 +899,13 @@ mod tests {
         let (content, tag_ids) =
             parse_content_and_tags(&mut state, "买菜 @生活 @urgent 明天".to_string(), vec![]);
 
-        assert_eq!(content, "买菜 明天");
-        assert_eq!(state.tags.len(), 2);
-        assert_eq!(tag_ids.len(), 2);
-        assert!(tag_ids.contains(&"tag-existing".to_string()));
-        assert!(state.tags.iter().any(|tag| tag.name == "urgent"));
+        assert_eq!(content, "买菜 @生活 @urgent 明天");
+        assert_eq!(state.tags.len(), 1);
+        assert!(tag_ids.is_empty());
     }
 
     #[test]
-    fn preserves_existing_tags_when_no_inline_tag_is_present() {
+    fn preserves_existing_hidden_tags_when_saving_content() {
         let mut state = AppState {
             schema_version: SCHEMA_VERSION,
             todos: vec![],
@@ -817,5 +925,100 @@ mod tests {
         assert_eq!(content, "finish report");
         assert_eq!(tag_ids, vec!["tag-existing".to_string()]);
         assert_eq!(state.tags.len(), 1);
+    }
+
+    #[test]
+    fn recommends_upcoming_after_today_is_clear() {
+        let state = AppState {
+            schema_version: SCHEMA_VERSION,
+            todos: vec![Todo {
+                id: "todo-1".to_string(),
+                content: "later".to_string(),
+                done: false,
+                planned_date: Some("2026-07-05".to_string()),
+                due_date: None,
+                priority: 3,
+                tag_ids: vec![],
+                reminder_enabled: false,
+                completed_at: None,
+                last_notified_on: None,
+            }],
+            tags: vec![],
+        };
+
+        let recommendation =
+            build_focus_route_recommendation(&state, "today", "2026-07-04")
+                .expect("recommend upcoming");
+
+        assert_eq!(recommendation.target_view, "upcoming");
+        assert_eq!(recommendation.action_label, "去以后");
+    }
+
+    #[test]
+    fn recommends_inbox_after_scheduled_work_is_clear() {
+        let state = AppState {
+            schema_version: SCHEMA_VERSION,
+            todos: vec![Todo {
+                id: "todo-1".to_string(),
+                content: "idea".to_string(),
+                done: false,
+                planned_date: None,
+                due_date: None,
+                priority: 3,
+                tag_ids: vec![],
+                reminder_enabled: false,
+                completed_at: None,
+                last_notified_on: None,
+            }],
+            tags: vec![],
+        };
+
+        let recommendation =
+            build_focus_route_recommendation(&state, "upcoming", "2026-07-04")
+                .expect("recommend inbox");
+
+        assert_eq!(recommendation.target_view, "inbox");
+        assert_eq!(recommendation.action_label, "去灵感");
+    }
+
+    #[test]
+    fn does_not_recommend_when_today_still_has_work() {
+        let state = AppState {
+            schema_version: SCHEMA_VERSION,
+            todos: vec![Todo {
+                id: "todo-1".to_string(),
+                content: "now".to_string(),
+                done: false,
+                planned_date: Some("2026-07-04".to_string()),
+                due_date: None,
+                priority: 3,
+                tag_ids: vec![],
+                reminder_enabled: false,
+                completed_at: None,
+                last_notified_on: None,
+            }],
+            tags: vec![],
+        };
+
+        assert!(build_focus_route_recommendation(&state, "today", "2026-07-04")
+            .is_none());
+    }
+
+    #[test]
+    fn recommends_today_after_everything_is_clear() {
+        let state = AppState {
+            schema_version: SCHEMA_VERSION,
+            todos: vec![],
+            tags: vec![],
+        };
+
+        let recommendation =
+            build_focus_route_recommendation(&state, "inbox", "2026-07-04")
+                .expect("recommend today");
+
+        assert_eq!(recommendation.target_view, "today");
+        assert_eq!(recommendation.action_label, "回今日");
+        assert!(build_focus_route_recommendation(&state, "today", "2026-07-04")
+            .is_none());
     }
 }

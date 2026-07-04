@@ -24,6 +24,7 @@ import { createStore } from "solid-js/store";
 import {
   commands,
   type AppState as GeneratedAppState,
+  type FocusRouteRecommendation as GeneratedFocusRouteRecommendation,
   type Tag,
   type Todo as GeneratedTodo,
 } from "../bindings";
@@ -36,13 +37,20 @@ export {
   type CorePartitionKey,
   type ViewKey,
   type Partitions,
+  type FocusRouteRecommendation,
   type TodoStats,
 };
 
 type Todo = Omit<
   GeneratedTodo,
-  "priority" | "tag_ids" | "reminder_enabled" | "completed_at" | "last_notified_on"
+  | "planned_date"
+  | "priority"
+  | "tag_ids"
+  | "reminder_enabled"
+  | "completed_at"
+  | "last_notified_on"
 > & {
+  planned_date: string | null;
   priority: number;
   tag_ids: string[];
   reminder_enabled: boolean;
@@ -56,10 +64,13 @@ type AppState = {
   tags: Tag[];
 };
 
-type CorePartitionKey = "today" | "upcoming" | "inbox" | "outdated" | "archived";
-type ViewKey = CorePartitionKey | "stats" | `tag:${string}`;
+type CorePartitionKey = "today" | "upcoming" | "inbox";
+type ViewKey = CorePartitionKey | "stats";
 
 type Partitions = Record<CorePartitionKey, Todo[]>;
+type FocusRouteRecommendation = GeneratedFocusRouteRecommendation & {
+  target_view: CorePartitionKey;
+};
 
 interface TrendDay {
   date: string;
@@ -74,18 +85,12 @@ interface TodoStats {
 }
 
 const EMPTY_STATE: AppState = {
-  schema_version: 2,
+  schema_version: 3,
   todos: [],
   tags: [],
 };
 
-const CORE_PARTITION_KEYS: CorePartitionKey[] = [
-  "today",
-  "upcoming",
-  "inbox",
-  "outdated",
-  "archived",
-];
+const CORE_PARTITION_KEYS: CorePartitionKey[] = ["today", "upcoming", "inbox"];
 
 function isCorePartitionKey(view: ViewKey): view is CorePartitionKey {
   return CORE_PARTITION_KEYS.includes(view as CorePartitionKey);
@@ -94,6 +99,7 @@ function isCorePartitionKey(view: ViewKey): view is CorePartitionKey {
 function normalizeTodo(todo: GeneratedTodo): Todo {
   return {
     ...todo,
+    planned_date: todo.planned_date ?? null,
     priority: Math.min(Math.max(todo.priority ?? 3, 1), 5),
     tag_ids: todo.tag_ids ?? [],
     reminder_enabled: todo.reminder_enabled ?? false,
@@ -104,7 +110,7 @@ function normalizeTodo(todo: GeneratedTodo): Todo {
 
 function normalizeState(state: GeneratedAppState): AppState {
   return {
-    schema_version: state.schema_version ?? 2,
+    schema_version: state.schema_version ?? 3,
     todos: (state.todos ?? []).map(normalizeTodo),
     tags: state.tags ?? [],
   };
@@ -139,21 +145,28 @@ function partitionTodos(todos: Todo[]): Partitions {
     today: [],
     upcoming: [],
     inbox: [],
-    outdated: [],
-    archived: [],
   };
 
   for (const todo of todos) {
     if (todo.done === true) {
-      result.archived.push(todo);
-    } else if (todo.due_date === null) {
-      result.inbox.push(todo);
-    } else if (todo.due_date === today) {
+      continue;
+    }
+
+    const plannedDate = todo.planned_date;
+    const dueDate = todo.due_date;
+
+    if (
+      (plannedDate !== null && plannedDate <= today) ||
+      (dueDate !== null && dueDate <= today)
+    ) {
       result.today.push(todo);
-    } else if (todo.due_date < today) {
-      result.outdated.push(todo);
-    } else {
+    } else if (
+      (plannedDate !== null && plannedDate > today) ||
+      (dueDate !== null && dueDate > today)
+    ) {
       result.upcoming.push(todo);
+    } else {
+      result.inbox.push(todo);
     }
   }
 
@@ -218,6 +231,8 @@ function isTodayDueReminder(todo: Todo, today: string): boolean {
 export function useTodos() {
   const [state, setState] = createStore<AppState>(EMPTY_STATE);
   const [loaded, setLoaded] = createSignal(false);
+  const [focusRecommendation, setFocusRecommendation] =
+    createSignal<FocusRouteRecommendation | null>(null);
 
   const applyState = (nextState: GeneratedAppState) => {
     setState(normalizeState(nextState));
@@ -228,6 +243,7 @@ export function useTodos() {
       const result = await commands.loadAppState();
       if (result.status === "ok") {
         applyState(result.data);
+        void requestFocusRecommendation("today");
       } else {
         console.error("无法从 Rust 中加载数据：", result.error);
       }
@@ -252,12 +268,48 @@ export function useTodos() {
     return false;
   };
 
+  const normalizeFocusRecommendation = (
+    recommendation: GeneratedFocusRouteRecommendation | null,
+  ): FocusRouteRecommendation | null => {
+    if (
+      recommendation !== null &&
+      isCorePartitionKey(recommendation.target_view as ViewKey)
+    ) {
+      return {
+        ...recommendation,
+        target_view: recommendation.target_view as CorePartitionKey,
+      };
+    }
+    return null;
+  };
+
+  const requestFocusRecommendation = async (currentView: CorePartitionKey) => {
+    try {
+      const result = await commands.checkFocusRoute(
+        currentView,
+        getTodayDateString(),
+      );
+      if (result.status === "ok") {
+        setFocusRecommendation(normalizeFocusRecommendation(result.data));
+      } else {
+        console.error("后台聚焦检查失败：", result.error);
+      }
+    } catch (error) {
+      console.error("后台聚焦检查失败：", error);
+    }
+  };
+
+  const clearFocusRecommendation = () => {
+    setFocusRecommendation(null);
+  };
+
   const handleAdd = async (
     content: string,
+    plannedDate: string | null,
     dueDate: string | null,
-    tagIds: string[],
   ) => {
-    const result = await commands.addTodo(content, dueDate, tagIds);
+    const result = await commands.addTodo(content, plannedDate, dueDate);
+    setFocusRecommendation(null);
     return handleCommandResult(result);
   };
 
@@ -266,11 +318,14 @@ export function useTodos() {
     handleCommandResult(result);
   };
 
-  const handleToggle = async (id: string) => {
+  const handleToggle = async (id: string, currentView: CorePartitionKey) => {
     const todo = state.todos.find((item) => item.id === id);
+    const willComplete = todo?.done === false;
     const completedAt = todo?.done ? null : getTodayDateString();
     const result = await commands.toggleTodo(id, completedAt);
-    handleCommandResult(result);
+    if (handleCommandResult(result) && willComplete) {
+      void requestFocusRecommendation(currentView);
+    }
   };
 
   const handleUpdate = async (id: string, content: string) => {
@@ -278,9 +333,16 @@ export function useTodos() {
     handleCommandResult(result);
   };
 
+  const handleUpdatePlannedDate = async (id: string, plannedDate: string | null) => {
+    const result = await commands.updateTodoPlannedDate(id, plannedDate);
+    handleCommandResult(result);
+    setFocusRecommendation(null);
+  };
+
   const handleUpdateDueDate = async (id: string, dueDate: string | null) => {
     const result = await commands.updateTodoDueDate(id, dueDate);
     handleCommandResult(result);
+    setFocusRecommendation(null);
   };
 
   const handleUpdatePriority = async (id: string, priority: number) => {
@@ -319,10 +381,6 @@ export function useTodos() {
 
   const getTodosForView = (view: ViewKey): Todo[] => {
     if (view === "stats") return [];
-    if (view.startsWith("tag:")) {
-      const tagId = view.slice(4);
-      return state.todos.filter((todo) => todo.tag_ids.includes(tagId));
-    }
     if (isCorePartitionKey(view)) {
       return partitions()[view];
     }
@@ -395,12 +453,16 @@ export function useTodos() {
     todos,
     tags,
     partitions,
+    focusRecommendation,
     stats,
     getTodosForView,
+    requestFocusRecommendation,
+    clearFocusRecommendation,
     handleAdd,
     handleDelete,
     handleToggle,
     handleUpdate,
+    handleUpdatePlannedDate,
     handleUpdateDueDate,
     handleUpdatePriority,
     handleUpdateTags,

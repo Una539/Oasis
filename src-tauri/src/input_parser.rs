@@ -65,6 +65,7 @@ pub struct ApplyTagSuggestionResult {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(dead_code)]
 pub struct ParsedContentTags {
     pub content: String,
     pub tag_names: Vec<String>,
@@ -185,6 +186,7 @@ pub fn remove_mention_from_value(value: &str, start: u32, end: u32) -> (String, 
     (collapsed.trim_start().to_string(), caret)
 }
 
+#[allow(dead_code)]
 pub fn parse_content_tags(value: &str) -> ParsedContentTags {
     let mut content_parts = Vec::new();
     let mut tag_names = Vec::new();

@@ -3,7 +3,7 @@
 <div align="center">
 
 [![License](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg?style=for-the-badge)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.5.1-green.svg?style=for-the-badge)](package.json)
+[![Version](https://img.shields.io/badge/version-0.6.0-green.svg?style=for-the-badge)](package.json)
 [![Stars](https://img.shields.io/github/stars/Una539/Oasis?style=for-the-badge&logo=github&color=yellow)](https://github.com/Una539/Oasis/stargazers)
 
 <br/>

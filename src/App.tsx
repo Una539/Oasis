@@ -23,19 +23,17 @@ function App() {
   const deviceType = useDeviceDetect();
   const {
     partitions,
-    tags,
+    focusRecommendation,
     stats,
-    getTodosForView,
     handleAdd,
     handleDelete,
     handleToggle,
     handleUpdate,
+    handleUpdatePlannedDate,
     handleUpdateDueDate,
     handleUpdatePriority,
-    handleUpdateTags,
     handleUpdateReminder,
-    handleApplyAppState,
-    handleDeleteTag,
+    clearFocusRecommendation,
   } = useTodos();
 
   return (
@@ -43,36 +41,32 @@ function App() {
       {deviceType() === "mobile" ? (
         <MobileApp
           partitions={partitions()}
-          tags={tags()}
+          focusRecommendation={focusRecommendation()}
           stats={stats()}
-          getTodosForView={getTodosForView}
           handleAdd={handleAdd}
           handleDelete={handleDelete}
           handleToggle={handleToggle}
           handleUpdate={handleUpdate}
+          handleUpdatePlannedDate={handleUpdatePlannedDate}
           handleUpdateDueDate={handleUpdateDueDate}
           handleUpdatePriority={handleUpdatePriority}
-          handleUpdateTags={handleUpdateTags}
           handleUpdateReminder={handleUpdateReminder}
-          handleApplyAppState={handleApplyAppState}
-          handleDeleteTag={handleDeleteTag}
+          clearFocusRecommendation={clearFocusRecommendation}
         />
       ) : (
         <DesktopApp
           partitions={partitions()}
-          tags={tags()}
+          focusRecommendation={focusRecommendation()}
           stats={stats()}
-          getTodosForView={getTodosForView}
           handleAdd={handleAdd}
           handleDelete={handleDelete}
           handleToggle={handleToggle}
           handleUpdate={handleUpdate}
+          handleUpdatePlannedDate={handleUpdatePlannedDate}
           handleUpdateDueDate={handleUpdateDueDate}
           handleUpdatePriority={handleUpdatePriority}
-          handleUpdateTags={handleUpdateTags}
           handleUpdateReminder={handleUpdateReminder}
-          handleApplyAppState={handleApplyAppState}
-          handleDeleteTag={handleDeleteTag}
+          clearFocusRecommendation={clearFocusRecommendation}
         />
       )}
     </>

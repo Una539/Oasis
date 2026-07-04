@@ -15,55 +15,58 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import { createSignal, Show } from "solid-js";
-import { Calendar, Plus } from "lucide-solid";
-import { type AppState as GeneratedAppState } from "../bindings";
-import { type Tag } from "../hooks/useTodos";
+import { Checkbox } from "@ark-ui/solid/checkbox";
+import { Calendar, CheckIcon, Plus } from "lucide-solid";
 import { getTodayDateString } from "../utils/date";
 import DueDateChip from "./DueDateChip";
-import TaggableTextInput from "./TaggableTextInput";
 
 interface TodoInputProps {
-  tags: Tag[];
-  onAppStateChange: (state: GeneratedAppState) => void;
   onAdd: (
     content: string,
+    plannedDate: string | null,
     dueDate: string | null,
-    tagIds: string[],
   ) => Promise<boolean>;
 }
 
 export default function TodoInput(props: TodoInputProps) {
   const [newContent, setContent] = createSignal("");
-  const [newDueDate, setNewDueDate] = createSignal("");
-  const [newTagIds, setNewTagIds] = createSignal<string[]>([]);
-  const [open, setOpen] = createSignal(false);
+  const [newDate, setNewDate] = createSignal("");
+  const [required, setRequired] = createSignal(false);
+  const [dateOpen, setDateOpen] = createSignal(false);
+  let handledDateTogglePointer = false;
 
   const addTodo = async (e: SubmitEvent) => {
     e.preventDefault();
     const content = newContent().trim();
     if (!content) return;
 
-    const dueDate = newDueDate() || null;
+    const selectedDate = newDate() || null;
+    const plannedDate = required() ? null : selectedDate;
+    const dueDate = required() ? selectedDate : null;
 
-    const success = await props.onAdd(content, dueDate, newTagIds());
+    const success = await props.onAdd(content, plannedDate, dueDate);
     if (success) {
       setContent("");
-      setNewDueDate("");
-      setNewTagIds([]);
-      setOpen(false);
+      setNewDate("");
+      setRequired(false);
+      setDateOpen(false);
     }
   };
 
   const handleDateClear = () => {
-    setNewDueDate("");
-    setOpen(false);
+    setNewDate("");
+    setDateOpen(false);
   };
 
-  const handleOpenChange = (open: boolean) => {
-    if (open && !newDueDate()) {
-      setNewDueDate(getTodayDateString());
+  const handleDateOpenChange = (open: boolean) => {
+    if (open && !newDate()) {
+      setNewDate(getTodayDateString());
     }
-    setOpen(open);
+    setDateOpen(open);
+  };
+
+  const toggleDateOpen = () => {
+    handleDateOpenChange(!dateOpen());
   };
 
   return (
@@ -71,28 +74,51 @@ export default function TodoInput(props: TodoInputProps) {
       {/* Input row */}
       <div class="todo-input-row-shell">
         <div class="todo-input-row flex items-stretch bg-surface border border-border transition-colors duration-200">
-          <TaggableTextInput
+          <input
+            type="text"
             value={newContent()}
-            tags={props.tags}
-            selectedTagIds={newTagIds()}
-            tagPlacement="below"
             placeholder="添加新待办..."
-            inputClass="flex-1 border-none bg-transparent color-text text-[15px] px-4 py-3 outline-none min-h-12 placeholder:text-text-muted"
-            onValueChange={setContent}
-            onTagIdsChange={setNewTagIds}
-            onAppStateChange={props.onAppStateChange}
+            class="flex-1 border-none bg-transparent color-text text-[15px] px-4 py-3 outline-none min-h-12 placeholder:text-text-muted"
+            onInput={(event) => setContent(event.currentTarget.value)}
           />
           <div class="w-px bg-border flex-shrink-0" />
 
           <button
             type="button"
             class="todo-input-action-button calendar flex items-center justify-center border-none bg-transparent cursor-pointer color-text-muted transition-all duration-150 flex-shrink-0 min-w-12 min-h-12 hover:color-text hover:bg-surface-hover active:opacity-80"
-            onClick={() => handleOpenChange(true)}
-            aria-label="选择截止日期"
-            title="选择截止日期"
+            onPointerDown={(event) => {
+              event.preventDefault();
+              handledDateTogglePointer = true;
+              toggleDateOpen();
+            }}
+            onClick={() => {
+              if (handledDateTogglePointer) {
+                handledDateTogglePointer = false;
+                return;
+              }
+              toggleDateOpen();
+            }}
+            aria-label={required() ? "选择必做日期" : "选择想做日期"}
+            title={required() ? "选择必做日期" : "选择想做日期"}
+            aria-pressed={dateOpen()}
           >
             <Calendar size={20} />
           </button>
+
+          <Checkbox.Root
+            class="todo-required-checkbox"
+            checked={required()}
+            onCheckedChange={(details) => setRequired(details.checked === true)}
+            title="标记为必做"
+          >
+            <Checkbox.Control class="todo-required-checkbox-control">
+              <Checkbox.Indicator class="todo-required-checkbox-indicator">
+                <CheckIcon size={12} strokeWidth={2.5} />
+              </Checkbox.Indicator>
+            </Checkbox.Control>
+            <Checkbox.Label class="todo-required-checkbox-label">必做</Checkbox.Label>
+            <Checkbox.HiddenInput />
+          </Checkbox.Root>
 
           <button
             type="submit"
@@ -105,18 +131,18 @@ export default function TodoInput(props: TodoInputProps) {
         </div>
       </div>
 
-      {/* Selected date chip */}
-      <Show when={open() || newDueDate()}>
+      {/* Date input popover */}
+      <Show when={dateOpen()}>
         <div class="date-chip-row">
           <DueDateChip
-            open={open()}
-            value={newDueDate()}
-            onOpenChange={handleOpenChange}
-            onValueChange={setNewDueDate}
+            open={dateOpen()}
+            value={newDate()}
+            onOpenChange={handleDateOpenChange}
+            onValueChange={setNewDate}
             onClear={handleDateClear}
             triggerClass=""
-            triggerLabel="选择截止日期"
-            triggerTitle="选择截止日期"
+            triggerLabel={required() ? "必做日期" : "想做日期"}
+            triggerTitle={required() ? "选择必做日期" : "选择想做日期"}
             showValue
           />
         </div>

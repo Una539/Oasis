@@ -15,145 +15,93 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import { Drawer, type DrawerOpenChangeDetails } from "@ark-ui/solid/drawer";
-import { For, Index, Show, createMemo, createSignal } from "solid-js";
-import { type AppState as GeneratedAppState } from "../bindings";
-import {
-  type CorePartitionKey,
-  type Partitions,
-  type Tag,
-  type TodoStats,
-  type ViewKey,
-} from "../hooks/useTodos";
-import TodoInput from "./TodoInput";
-import MobileTodoItem from "./MobileTodoItem";
-import StatsPanel from "./StatsPanel";
 import {
   Select,
   createListCollection as createSelectCollection,
   type SelectValueChangeDetails,
 } from "@ark-ui/solid/select";
-
+import { For, Index, Show, createSignal } from "solid-js";
 import { Portal } from "solid-js/web";
+import { BarChart3Icon, ChevronsUpDownIcon, XIcon } from "lucide-solid";
 import {
-  BarChart3Icon,
-  CheckIcon,
-  ChevronsUpDownIcon,
-  TagsIcon,
-  Trash2Icon,
-  XIcon,
-} from "lucide-solid";
+  type CorePartitionKey,
+  type FocusRouteRecommendation,
+  type Partitions,
+  type TodoStats,
+} from "../hooks/useTodos";
+import TodoInput from "./TodoInput";
+import MobileTodoItem from "./MobileTodoItem";
+import StatsPanel from "./StatsPanel";
 
 interface Item {
   label: string;
   value: CorePartitionKey;
 }
 
-interface TagListItem {
-  label: string;
-  value: string;
-  tagId: string;
-  color: string;
-  count: number;
-}
-
 interface MobileAppProps {
   partitions: Partitions;
-  tags: Tag[];
+  focusRecommendation: FocusRouteRecommendation | null;
   stats: TodoStats;
-  getTodosForView: (view: ViewKey) => import("../hooks/useTodos").Todo[];
   handleAdd: (
     content: string,
+    plannedDate: string | null,
     dueDate: string | null,
-    tagIds: string[],
   ) => Promise<boolean>;
   handleDelete: (id: string) => Promise<void>;
-  handleToggle: (id: string) => Promise<void>;
+  handleToggle: (id: string, currentView: CorePartitionKey) => Promise<void>;
   handleUpdate: (id: string, content: string) => Promise<void>;
+  handleUpdatePlannedDate: (
+    id: string,
+    plannedDate: string | null,
+  ) => Promise<void>;
   handleUpdateDueDate: (id: string, dueDate: string | null) => Promise<void>;
   handleUpdatePriority: (id: string, priority: number) => Promise<void>;
-  handleUpdateTags: (id: string, tagIds: string[]) => Promise<void>;
   handleUpdateReminder: (id: string, reminderEnabled: boolean) => Promise<void>;
-  handleApplyAppState: (state: GeneratedAppState) => void;
-  handleDeleteTag: (id: string) => Promise<void>;
+  clearFocusRecommendation: () => void;
 }
 
 const EMPTY_MESSAGES: Record<CorePartitionKey, string> = {
-  today: "今天没有待办，保持这份清爽。",
-  upcoming: "未来还没有安排。",
-  inbox: "没有未安排日期的待办。",
-  outdated: "没有过期待办。",
-  archived: "还没有完成记录。",
+  today: "今日没有待办，保持这份清爽。",
+  upcoming: "以后还没有安排。",
+  inbox: "灵感箱是空的。",
 };
 
 const PARTITION_COLLECTION = createSelectCollection<Item>({
   items: [
-    { label: "今天", value: "today" },
-    { label: "未来", value: "upcoming" },
-    { label: "任意时间", value: "inbox" },
-    { label: "过期", value: "outdated" },
-    { label: "已完成", value: "archived" },
+    { label: "今日", value: "today" },
+    { label: "以后", value: "upcoming" },
+    { label: "灵感", value: "inbox" },
   ],
 });
 
 export default function MobileApp(props: MobileAppProps) {
   const [currentView, setCurrentView] = createSignal<CorePartitionKey>("today");
-  const [selectedTagIds, setSelectedTagIds] = createSignal<string[]>([]);
   const [statsOpen, setStatsOpen] = createSignal(false);
 
-  const tagCollection = createMemo(() =>
-    createSelectCollection<TagListItem>({
-      items: props.tags.map((tag) => {
-        return {
-          label: tag.name,
-          value: tag.id,
-          tagId: tag.id,
-          color: tag.color,
-          count: props
-            .getTodosForView(currentView())
-            .filter((todo) => todo.tag_ids.includes(tag.id)).length,
-        };
-      }),
-    }),
-  );
-
   const handleValueChange = (details: SelectValueChangeDetails<Item>) => {
-    setCurrentView(details.value[0] as CorePartitionKey);
-    setSelectedTagIds([]);
-  };
+    const nextView = details.value[0] as CorePartitionKey | undefined;
+    if (!nextView) return;
 
-  const handleTagValueChange = (details: SelectValueChangeDetails<TagListItem>) => {
-    setSelectedTagIds(details.value);
+    setCurrentView(nextView);
+    props.clearFocusRecommendation();
   };
 
   const handleStatsOpenChange = (details: DrawerOpenChangeDetails) => {
     setStatsOpen(details.open);
   };
 
-  // ---- 计算属性 ----
-  // 根据当前分区获取对应的待办列表
-  const currentTodos = () => {
-    const todos = props.getTodosForView(currentView());
-    const tagIds = selectedTagIds();
-    if (tagIds.length === 0) return todos;
-    return todos.filter((todo) =>
-      tagIds.every((tagId) => todo.tag_ids.includes(tagId)),
-    );
+  const acceptFocusRecommendation = () => {
+    const recommendation = props.focusRecommendation;
+    if (!recommendation) return;
+
+    setCurrentView(recommendation.target_view);
+    props.clearFocusRecommendation();
   };
 
-  const currentEmptyMessage = () => {
-    const view = currentView();
-    if (selectedTagIds().length > 0) return "这些标签下还没有待办。";
-    return EMPTY_MESSAGES[view as CorePartitionKey];
-  };
-
-  const deleteTag = async (tagId: string) => {
-    await props.handleDeleteTag(tagId);
-    setSelectedTagIds((current) => current.filter((id) => id !== tagId));
-  };
+  const currentTodos = () => props.partitions[currentView()];
 
   return (
     <main flex flex-col h-full bg-bg>
-      {/* Mobile title bar at top */}
       <header
         flex-shrink-0
         flex
@@ -166,70 +114,6 @@ export default function MobileApp(props: MobileAppProps) {
         border-b
         border-border
       >
-        <Select.Root
-          collection={tagCollection()}
-          value={selectedTagIds()}
-          onValueChange={handleTagValueChange}
-          multiple
-          closeOnSelect={false}
-        >
-          <Select.Control>
-            <Select.Trigger
-              class="mobile-header-icon-button mobile-tag-select-trigger"
-              aria-label="打开标签筛选"
-              title="标签"
-            >
-              <TagsIcon size={19} />
-              <Show when={selectedTagIds().length > 0}>
-                <span class="mobile-tag-select-badge">{selectedTagIds().length}</span>
-              </Show>
-            </Select.Trigger>
-          </Select.Control>
-          <Portal>
-            <Select.Positioner class="mobile-tag-select-positioner">
-              <Select.Content class="select-content mobile-tag-select-content p-1">
-                <Show
-                  when={props.tags.length > 0}
-                  fallback={<div class="mobile-tag-empty">还没有标签。</div>}
-                >
-                  <Select.ItemGroup>
-                    <Index each={tagCollection().items}>
-                      {(item) => (
-                        <Select.Item
-                          class="select-item mobile-tag-select-item px-2 py-2 text-sm rounded cursor-pointer flex items-center gap-2 transition-colors duration-150"
-                          item={item()}
-                          style={{ "--tag-color": item().color }}
-                        >
-                          <Select.ItemText class="mobile-tag-select-text">
-                            <span class="sidebar-tag-label">{item().label}</span>
-                            <span class="mobile-tag-count">{item().count}</span>
-                          </Select.ItemText>
-                          <Select.ItemIndicator class="select-item-indicator mobile-tag-select-check">
-                            <CheckIcon size={15} />
-                          </Select.ItemIndicator>
-                          <button
-                            type="button"
-                            class="mobile-tag-delete"
-                            onPointerDown={(event) => event.stopPropagation()}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              void deleteTag(item().tagId);
-                            }}
-                            aria-label={`删除标签 ${item().label}`}
-                            title="删除标签"
-                          >
-                            <Trash2Icon size={15} />
-                          </button>
-                        </Select.Item>
-                      )}
-                    </Index>
-                  </Select.ItemGroup>
-                </Show>
-              </Select.Content>
-            </Select.Positioner>
-          </Portal>
-          <Select.HiddenSelect />
-        </Select.Root>
         <div class="mobile-select-wrapper">
           <Select.Root
             collection={PARTITION_COLLECTION}
@@ -247,7 +131,7 @@ export default function MobileApp(props: MobileAppProps) {
               </div>
             </Select.Control>
             <Portal>
-              <Select.Positioner class="w-[55%]">
+              <Select.Positioner class="w-[62%]">
                 <Select.Content class="select-content p-1">
                   <Select.ItemGroup>
                     <Index each={PARTITION_COLLECTION.items}>
@@ -290,30 +174,34 @@ export default function MobileApp(props: MobileAppProps) {
         gap-3
         overflow-hidden
       >
-        <TodoInput
-          tags={props.tags}
-          onAdd={props.handleAdd}
-          onAppStateChange={props.handleApplyAppState}
-        />
+        <TodoInput onAdd={props.handleAdd} />
+
+        <Show when={props.focusRecommendation}>
+          {(recommendation) => (
+            <div class="focus-route-banner mobile">
+              <span>{recommendation().message}</span>
+              <button type="button" onClick={acceptFocusRecommendation}>
+                {recommendation().action_label}
+              </button>
+            </div>
+          )}
+        </Show>
 
         <div flex-1 overflow-y-auto overflow-x-hidden pr-1 flex flex-col gap-2>
           <Show when={currentTodos().length === 0}>
-            <div class="empty-state mobile">{currentEmptyMessage()}</div>
+            <div class="empty-state mobile">{EMPTY_MESSAGES[currentView()]}</div>
           </Show>
           <For each={currentTodos()}>
             {(todo) => (
               <MobileTodoItem
                 todo={todo}
-                tags={props.tags}
-                onToggle={props.handleToggle}
+                onToggle={(id) => props.handleToggle(id, currentView())}
                 onDelete={props.handleDelete}
                 onUpdate={props.handleUpdate}
+                onUpdatePlannedDate={props.handleUpdatePlannedDate}
                 onUpdateDueDate={props.handleUpdateDueDate}
                 onUpdatePriority={props.handleUpdatePriority}
-                onUpdateTags={props.handleUpdateTags}
                 onUpdateReminder={props.handleUpdateReminder}
-                onAppStateChange={props.handleApplyAppState}
-                canReschedule={selectedTagIds().length === 0 && currentView() === "outdated"}
               />
             )}
           </For>

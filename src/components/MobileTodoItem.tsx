@@ -14,14 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { createSignal, createMemo, onCleanup, Show } from "solid-js";
+import { createEffect, createSignal, createMemo, onCleanup } from "solid-js";
 import { X } from "lucide-solid";
-import { type AppState as GeneratedAppState } from "../bindings";
-import { type Tag, type Todo } from "../hooks/useTodos";
+import { type Todo } from "../hooks/useTodos";
 import { getTodayDateString } from "../utils/date";
 import { getPriorityColor } from "../utils/tags";
 import DueDateChip from "./DueDateChip";
-import TaggableTextInput from "./TaggableTextInput";
 import TodoMetaControls from "./TodoMetaControls";
 
 const DELETE_THRESHOLD = 120;
@@ -118,28 +116,49 @@ function createSwipeToDelete(onDelete: () => void): SwipeResult {
 
 interface MobileTodoItemProps {
   todo: Todo;
-  tags: Tag[];
   onToggle: (id: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onUpdate: (id: string, content: string) => Promise<void>;
+  onUpdatePlannedDate: (id: string, plannedDate: string | null) => Promise<void>;
   onUpdateDueDate: (id: string, dueDate: string | null) => Promise<void>;
   onUpdatePriority: (id: string, priority: number) => Promise<void>;
-  onUpdateTags: (id: string, tagIds: string[]) => Promise<void>;
   onUpdateReminder: (id: string, reminderEnabled: boolean) => Promise<void>;
-  onAppStateChange: (state: GeneratedAppState) => void;
-  canReschedule: boolean;
 }
 
 export default function MobileTodoItem(props: MobileTodoItemProps) {
   const { offset, trackClass, onTouchStart, onTouchMove, onTouchEnd } =
     createSwipeToDelete(() => props.onDelete(props.todo.id));
+  const [draftContent, setDraftContent] = createSignal(props.todo.content);
+  const [plannedDatePickerOpen, setPlannedDatePickerOpen] = createSignal(false);
+  const [draftPlannedDate, setDraftPlannedDate] = createSignal("");
   const [datePickerOpen, setDatePickerOpen] = createSignal(false);
   const [draftDueDate, setDraftDueDate] = createSignal("");
+
+  createEffect(() => {
+    setDraftContent(props.todo.content);
+  });
+
+  const commitContent = async () => {
+    const content = draftContent().trim();
+    if (!content || content === props.todo.content) return;
+    await props.onUpdate(props.todo.id, content);
+  };
+
+  const handlePlannedDateClear = async () => {
+    await props.onUpdatePlannedDate(props.todo.id, null);
+    setPlannedDatePickerOpen(false);
+    setDraftPlannedDate("");
+  };
 
   const handleDateClear = async () => {
     await props.onUpdateDueDate(props.todo.id, null);
     setDatePickerOpen(false);
     setDraftDueDate("");
+  };
+
+  const handlePlannedOpenChange = (open: boolean) => {
+    setPlannedDatePickerOpen(open);
+    setDraftPlannedDate(open ? getTodayDateString() : "");
   };
 
   const handleOpenChange = (open: boolean) => {
@@ -182,22 +201,28 @@ export default function MobileTodoItem(props: MobileTodoItemProps) {
           checked={props.todo.done}
           onChange={() => props.onToggle(props.todo.id)}
         />
-        <TaggableTextInput
-          value={props.todo.content}
-          tags={props.tags}
-          selectedTagIds={props.todo.tag_ids}
-          tagPlacement="below"
-          done={props.todo.done}
-          onValueChange={() => undefined}
-          onCommit={(content) => props.onUpdate(props.todo.id, content)}
-          onTagIdsChange={(tagIds) => props.onUpdateTags(props.todo.id, tagIds)}
-          onAppStateChange={props.onAppStateChange}
+        <input
+          type="text"
+          class={props.todo.done ? "todo-text-input done" : "todo-text-input"}
+          value={draftContent()}
+          onInput={(event) => setDraftContent(event.currentTarget.value)}
+          onBlur={() => void commitContent()}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.currentTarget.blur();
+            }
+          }}
         />
         <TodoMetaControls
           todo={props.todo}
           onUpdatePriority={props.onUpdatePriority}
           onUpdateReminder={props.onUpdateReminder}
         />
+        {props.todo.planned_date && (
+          <span class="due-date-badge" text="[12px]" whitespace-nowrap flex-shrink-0>
+            想 {props.todo.planned_date}
+          </span>
+        )}
         {props.todo.due_date && (
           <span
             class={dueDateClass()}
@@ -205,25 +230,37 @@ export default function MobileTodoItem(props: MobileTodoItemProps) {
             whitespace-nowrap
             flex-shrink-0
           >
-            {props.todo.due_date}
+            截 {props.todo.due_date}
           </span>
         )}
-        <Show when={props.canReschedule}>
-          <DueDateChip
-            open={datePickerOpen()}
-            value={draftDueDate() || props.todo.due_date || ""}
-            onOpenChange={handleOpenChange}
-            onValueChange={(value) => {
-              setDraftDueDate(value);
-              void props.onUpdateDueDate(props.todo.id, value || null);
-            }}
-            onClear={handleDateClear}
-            triggerClass="todo-icon-button mobile"
-            triggerLabel="重新安排截止日期"
-            triggerTitle="重新安排"
-            showValue={false}
-          />
-        </Show>
+        <DueDateChip
+          open={plannedDatePickerOpen()}
+          value={draftPlannedDate() || props.todo.planned_date || ""}
+          onOpenChange={handlePlannedOpenChange}
+          onValueChange={(value) => {
+            setDraftPlannedDate(value);
+            void props.onUpdatePlannedDate(props.todo.id, value || null);
+          }}
+          onClear={handlePlannedDateClear}
+          triggerClass="todo-icon-button mobile"
+          triggerLabel="设置想做日期"
+          triggerTitle="想做日期"
+          showValue={false}
+        />
+        <DueDateChip
+          open={datePickerOpen()}
+          value={draftDueDate() || props.todo.due_date || ""}
+          onOpenChange={handleOpenChange}
+          onValueChange={(value) => {
+            setDraftDueDate(value);
+            void props.onUpdateDueDate(props.todo.id, value || null);
+          }}
+          onClear={handleDateClear}
+          triggerClass="todo-icon-button mobile"
+          triggerLabel="设置截止日期"
+          triggerTitle="截止日期"
+          showValue={false}
+        />
         <button
           class="todo-delete-button mobile"
           type="button"

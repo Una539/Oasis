@@ -30,9 +30,11 @@ pub fn run() {
     let builder = Builder::new().commands(collect_commands![
         store::load_app_state,
         store::add_todo,
+        store::check_focus_route,
         store::delete_todo,
         store::toggle_todo,
         store::update_todo_content,
+        store::update_todo_planned_date,
         store::update_todo_due_date,
         store::update_todo_priority,
         store::update_todo_tags,
@@ -170,9 +172,11 @@ mod tests {
         let builder = Builder::new().commands(collect_commands![
             super::store::load_app_state,
             super::store::add_todo,
+            super::store::check_focus_route,
             super::store::delete_todo,
             super::store::toggle_todo,
             super::store::update_todo_content,
+            super::store::update_todo_planned_date,
             super::store::update_todo_due_date,
             super::store::update_todo_priority,
             super::store::update_todo_tags,

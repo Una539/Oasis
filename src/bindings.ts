@@ -5,10 +5,16 @@ import { invoke as __TAURI_INVOKE } from "@tauri-apps/api/core";
 /** Commands */
 export const commands = {
 	loadAppState: () => typedError<AppState, string>(__TAURI_INVOKE("load_app_state")),
-	addTodo: (content: string, dueDate: string | null, tagIds: string[]) => typedError<AppState, string>(__TAURI_INVOKE("add_todo", { content, dueDate, tagIds })),
+	addTodo: (content: string, plannedDate: string | null, dueDate: string | null) => typedError<AppState, string>(__TAURI_INVOKE("add_todo", { content, plannedDate, dueDate })),
+	checkFocusRoute: (currentView: string, today: string) => typedError<{
+	target_view: string,
+	message: string,
+	action_label: string,
+} | null, string>(__TAURI_INVOKE("check_focus_route", { currentView, today })),
 	deleteTodo: (id: string) => typedError<AppState, string>(__TAURI_INVOKE("delete_todo", { id })),
 	toggleTodo: (id: string, completedAt: string | null) => typedError<AppState, string>(__TAURI_INVOKE("toggle_todo", { id, completedAt })),
 	updateTodoContent: (id: string, content: string) => typedError<AppState, string>(__TAURI_INVOKE("update_todo_content", { id, content })),
+	updateTodoPlannedDate: (id: string, plannedDate: string | null) => typedError<AppState, string>(__TAURI_INVOKE("update_todo_planned_date", { id, plannedDate })),
 	updateTodoDueDate: (id: string, dueDate: string | null) => typedError<AppState, string>(__TAURI_INVOKE("update_todo_due_date", { id, dueDate })),
 	updateTodoPriority: (id: string, priority: number) => typedError<AppState, string>(__TAURI_INVOKE("update_todo_priority", { id, priority })),
 	updateTodoTags: (id: string, tagIds: string[]) => typedError<AppState, string>(__TAURI_INVOKE("update_todo_tags", { id, tagIds })),
@@ -33,6 +39,12 @@ export type ApplyTagSuggestionResult = {
 	tag_ids: string[],
 	caret: number,
 	app_state: AppState,
+};
+
+export type FocusRouteRecommendation = {
+	target_view: string,
+	message: string,
+	action_label: string,
 };
 
 export type MentionToken = {
@@ -68,6 +80,7 @@ export type Todo = {
 	id: string,
 	content: string,
 	done: boolean,
+	planned_date?: string | null,
 	due_date: string | null,
 	priority?: number,
 	tag_ids?: string[],

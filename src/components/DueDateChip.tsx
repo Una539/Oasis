@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { DateInput, type DateInputValueChangeDetails } from "@ark-ui/solid/date-input";
-import { parseDate, type DateValue } from "@internationalized/date";
 import { createEffect, createSignal, Show } from "solid-js";
 import { CalendarClock, X } from "lucide-solid";
 import { getTodayDateString } from "../utils/date";
@@ -32,47 +30,121 @@ interface DueDateChipProps {
   showValue?: boolean;
 }
 
-function toDateValue(value: string): DateValue[] {
-  try {
-    return value ? [parseDate(value)] : [];
-  } catch {
-    return [];
-  }
+interface ParsedDate {
+  year: string;
+  month: string;
+  day: string;
 }
 
-function toDateString(value: DateValue | undefined): string | null {
-  return value ? value.toString() : null;
+function parseDate(value: string): ParsedDate {
+  const fallback = getTodayDateString().split("-");
+  const parts = (value || getTodayDateString()).split("-");
+  const [year = fallback[0], month = fallback[1], day = fallback[2]] = parts;
+  return { year, month, day };
+}
+
+function toDateString(parts: ParsedDate): string | null {
+  if (parts.year.length !== 4 || parts.month.length !== 2 || parts.day.length !== 2) {
+    return null;
+  }
+
+  const year = Number(parts.year);
+  const month = Number(parts.month);
+  const day = Number(parts.day);
+
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day) ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31
+  ) {
+    return null;
+  }
+
+  const date = new Date(year, month - 1, day);
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function cleanDatePart(value: string, maxLength: number) {
+  return value.replace(/\D/g, "").slice(0, maxLength);
+}
+
+function focusInput(input: HTMLInputElement | undefined | null) {
+  input?.focus();
+  input?.setSelectionRange?.(input.value.length, input.value.length);
 }
 
 export default function DueDateChip(props: DueDateChipProps) {
-  const [draftValue, setDraftValue] = createSignal<DateValue[]>(toDateValue(props.value));
+  const [draft, setDraft] = createSignal<ParsedDate>(parseDate(props.value));
   const showValue = () => props.showValue ?? true;
   let lastOpen = false;
+  let yearRef: HTMLInputElement | undefined;
+  let monthRef: HTMLInputElement | undefined;
+  let dayRef: HTMLInputElement | undefined;
 
   createEffect(() => {
     if (props.open && !lastOpen) {
-      setDraftValue(toDateValue(props.value || getTodayDateString()));
+      setDraft(parseDate(props.value));
+      queueMicrotask(() => focusInput(yearRef));
     }
     lastOpen = props.open;
   });
 
-  const commitValue = (value = toDateString(draftValue()[0])) => {
+  const commitIfComplete = () => {
+    const value = toDateString(draft());
     if (!value) return;
     props.onValueChange(value);
-  };
-
-  const commitAndClose = () => {
-    commitValue();
     props.onOpenChange(false);
   };
 
-  const handleValueChange = (details: DateInputValueChangeDetails) => {
-    setDraftValue(details.value);
+  const handleInput =
+    (
+      key: keyof ParsedDate,
+      maxLength: number,
+      next?: HTMLInputElement,
+    ) =>
+    (event: InputEvent) => {
+      const target = event.currentTarget as HTMLInputElement;
+      const value = cleanDatePart(target.value, maxLength);
+      target.value = value;
+      setDraft((current) => ({ ...current, [key]: value }));
 
-    const value = toDateString(details.value[0]);
-    if (value) {
-      props.onValueChange(value);
-    }
+      if (value.length === maxLength) {
+        focusInput(next);
+      }
+    };
+
+  const handleKeyDown =
+    (previous?: HTMLInputElement) =>
+    (event: KeyboardEvent) => {
+      const target = event.currentTarget as HTMLInputElement;
+
+      if (event.key === "Enter") {
+        event.preventDefault();
+        commitIfComplete();
+        return;
+      }
+
+      if (event.key === "Backspace" && !target.value && previous) {
+        event.preventDefault();
+        focusInput(previous);
+      }
+  };
+
+  const clearAndClose = () => {
+    props.onClear();
+    props.onOpenChange(false);
   };
 
   return (
@@ -123,46 +195,71 @@ export default function DueDateChip(props: DueDateChipProps) {
         )
       }
     >
-      <DateInput.Root
+      <div
         class="date-chip-editor"
-        value={draftValue()}
-        onValueChange={handleValueChange}
-        granularity="day"
-        locale="zh-CN"
         onFocusOut={(e) => {
           const next = e.relatedTarget as Node | null;
           if (!e.currentTarget.contains(next)) {
-            commitAndClose();
-          }
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            commitAndClose();
+            commitIfComplete();
           }
         }}
       >
-        <DateInput.Control class="date-chip-fields">
-          <DateInput.SegmentGroup class="date-chip-segment-group">
-            <DateInput.SegmentContext>
-              {(segment) => <DateInput.Segment class="date-chip-segment" segment={segment} />}
-            </DateInput.SegmentContext>
-          </DateInput.SegmentGroup>
-        </DateInput.Control>
-        <DateInput.HiddenInput />
+        <div class="date-chip-fields">
+          <input
+            ref={yearRef}
+            type="text"
+            inputMode="numeric"
+            autocomplete="off"
+            spellcheck="false"
+            class="date-chip-segment year"
+            value={draft().year}
+            onInput={handleInput("year", 4, monthRef)}
+            onKeyDown={handleKeyDown()}
+            aria-label="年份"
+            placeholder="年"
+            maxLength={4}
+          />
+          <span class="date-chip-separator">/</span>
+          <input
+            ref={monthRef}
+            type="text"
+            inputMode="numeric"
+            autocomplete="off"
+            spellcheck="false"
+            class="date-chip-segment short"
+            value={draft().month}
+            onInput={handleInput("month", 2, dayRef)}
+            onKeyDown={handleKeyDown(yearRef)}
+            aria-label="月份"
+            placeholder="月"
+            maxLength={2}
+          />
+          <span class="date-chip-separator">/</span>
+          <input
+            ref={dayRef}
+            type="text"
+            inputMode="numeric"
+            autocomplete="off"
+            spellcheck="false"
+            class="date-chip-segment short"
+            value={draft().day}
+            onInput={handleInput("day", 2)}
+            onKeyDown={handleKeyDown(monthRef)}
+            aria-label="日期"
+            placeholder="日"
+            maxLength={2}
+          />
+        </div>
         <button
           type="button"
           class="date-chip-clear"
-          onClick={() => {
-            props.onClear();
-            props.onOpenChange(false);
-          }}
+          onClick={clearAndClose}
           aria-label="清除日期"
           title="清除日期"
         >
           <X size={12} />
         </button>
-      </DateInput.Root>
+      </div>
     </Show>
   );
 }

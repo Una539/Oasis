@@ -98,6 +98,7 @@ body {
 /* ===== Shared Todo Text Input ===== */
 .todo-text-input {
   flex: 1;
+  min-width: 0;
   text-align: left;
   border: none;
   min-height: 48px;
@@ -238,9 +239,75 @@ body {
   border-radius: 0 10px 10px 0;
 }
 
+.todo-required-checkbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42rem;
+  min-height: 48px;
+  padding: 0 0.72rem;
+  border-left: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.todo-required-checkbox:hover,
+.todo-required-checkbox:focus-within {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.todo-required-checkbox-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  border: 1.5px solid var(--text-muted);
+  border-radius: 5px;
+  background: var(--surface);
+  flex-shrink: 0;
+  color: var(--bg);
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.todo-required-checkbox-control[data-state="checked"] {
+  background: var(--text);
+  border-color: var(--text);
+}
+
+.todo-required-checkbox:hover .todo-required-checkbox-control {
+  border-color: var(--text-secondary);
+}
+
+.todo-required-checkbox:active .todo-required-checkbox-control {
+  transform: scale(0.94);
+}
+
+.todo-required-checkbox-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.todo-required-checkbox-label {
+  line-height: 1;
+}
+
 @media (hover: none) and (pointer: coarse) {
   .todo-input-action-button.submit {
     border-radius: 0 16px 16px 0;
+  }
+
+  .todo-required-checkbox {
+    min-height: 52px;
+    padding: 0 0.58rem;
+    font-size: 12px;
   }
 }
 
@@ -341,6 +408,7 @@ body {
 }
 
 .date-chip-segment {
+  display: inline-block;
   border: none;
   background: transparent;
   color: var(--text);
@@ -349,30 +417,39 @@ body {
   line-height: 1;
   padding: 0.2rem 0.25rem;
   box-sizing: border-box;
-  min-width: 0;
+  min-width: 3ch;
   width: 3ch;
   text-align: center;
+  white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 
-.date-chip-segment[data-type="literal"] {
+.date-chip-segment.literal {
   width: auto;
+  min-width: auto;
   padding-inline: 0.04rem;
   color: var(--text-secondary);
   user-select: none;
 }
 
-.date-chip-segment[data-type="year"] {
-  width: 5ch;
+.date-chip-segment[data-segment-type="year"] {
+  min-width: 5.6ch;
+  width: 5.6ch;
 }
 
-.date-chip-segment[data-type="month"],
-.date-chip-segment[data-type="day"] {
+.date-chip-segment-group > .date-chip-segment.field:first-child {
+  min-width: 5.6ch;
+  width: 5.6ch;
+}
+
+.date-chip-segment[data-segment-type="month"],
+.date-chip-segment[data-segment-type="day"] {
   width: 3ch;
 }
 
 .date-chip-segment.year {
-  width: 5ch;
+  min-width: 5.6ch;
+  width: 5.6ch;
 }
 
 .date-chip-segment.short {
@@ -390,8 +467,8 @@ body {
   border-radius: 0.45rem;
 }
 
-.date-chip-segment[data-type="literal"]:focus,
-.date-chip-segment[data-type="literal"][data-focus] {
+.date-chip-segment.literal:focus,
+.date-chip-segment.literal[data-focus] {
   background: transparent;
   color: var(--text-secondary);
 }
@@ -615,6 +692,62 @@ body {
   min-height: 140px;
   border-radius: 16px;
   font-size: 15px;
+}
+
+/* ===== Focus Route Banner ===== */
+.focus-route-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  padding: 0.72rem 0.85rem 0.72rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--text-secondary) 22%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 82%, var(--bg));
+  color: var(--text-secondary);
+  font-size: 13px;
+  animation: focus-route-in 0.16s ease-out;
+}
+
+.focus-route-banner span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.focus-route-banner button {
+  flex-shrink: 0;
+  border: 1px solid var(--text);
+  border-radius: 7px;
+  background: var(--text);
+  color: var(--bg);
+  padding: 0.42rem 0.68rem;
+  font-size: 13px;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.focus-route-banner button:hover {
+  opacity: 0.82;
+}
+
+.focus-route-banner button:active {
+  transform: scale(0.96);
+}
+
+.focus-route-banner.mobile {
+  border-radius: 12px;
+  font-size: 14px;
+}
+
+@keyframes focus-route-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ===== Dark Mode Tweaks ===== */
