@@ -5,7 +5,7 @@ import { invoke as __TAURI_INVOKE } from "@tauri-apps/api/core";
 /** Commands */
 export const commands = {
 	loadAppState: () => typedError<AppState, string>(__TAURI_INVOKE("load_app_state")),
-	addTodo: (content: string, plannedDate: string | null, dueDate: string | null) => typedError<AppState, string>(__TAURI_INVOKE("add_todo", { content, plannedDate, dueDate })),
+	addTodo: (content: string, plannedDate: string | null, dueDate: string | null, today: string) => typedError<AppState, string>(__TAURI_INVOKE("add_todo", { content, plannedDate, dueDate, today })),
 	checkFocusRoute: (currentView: string, today: string) => typedError<{
 	target_view: string,
 	message: string,

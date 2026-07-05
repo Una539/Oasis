@@ -2121,9 +2121,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "oasis"
-version = "0.6.0"
+name = "num_threads"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c7398b9c8b70908f6371f47ed36737907c87c52af34c268fed0bf0ceb92ead9"
 dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "oasis"
+version = "0.7.0"
+dependencies = [
+ "regex",
+ "rosetta-date",
  "serde",
  "serde_json",
  "specta",
@@ -2843,6 +2854,16 @@ dependencies = [
  "wasm-bindgen-futures",
  "wasm-streams",
  "web-sys",
+]
+
+[[package]]
+name = "rosetta-date"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "676a2ed188c5802f71ecf5d99781ef22893957a11f017ffec1966e92e8cbcb59"
+dependencies = [
+ "thiserror 2.0.18",
+ "time",
 ]
 
 [[package]]
@@ -3820,7 +3841,9 @@ checksum = "743bd48c283afc0388f9b8827b976905fb217ad9e647fae3a379a9283c4def2c"
 dependencies = [
  "deranged",
  "itoa",
+ "libc",
  "num-conv",
+ "num_threads",
  "powerfmt",
  "serde_core",
  "time-core",

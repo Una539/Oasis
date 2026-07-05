@@ -1,6 +1,6 @@
 [package]
 name = "oasis"
-version = "0.6.0"
+version = "0.7.0"
 description = "一款轻量、简洁的跨平台待办事项桌面应用。"
 authors = ["Uno"]
 license = "GPL-3.0-or-later"
@@ -23,6 +23,8 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+regex = "1"
+rosetta-date = { version = "0.3.0", default-features = false, features = ["time-backend", "lang-en", "lang-zh"] }
 specta = "2.0.0-rc.25"
 specta-typescript = "0.0.12"
 tauri-specta = { version = "2.0.0-rc.25", features = ["typescript"] }

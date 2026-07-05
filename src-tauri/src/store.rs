@@ -27,6 +27,7 @@ use crate::input_parser::{
     build_tag_input_analysis, remove_mention_from_value, ApplyTagSuggestionResult,
     TagInputAnalysis, TagSuggestionAction,
 };
+use crate::quick_add::parse_quick_add;
 
 const SCHEMA_VERSION: u32 = 3;
 const DEFAULT_PRIORITY: u8 = 3;
@@ -131,6 +132,10 @@ fn normalize_todo(todo: &mut Todo) {
 
     todo.priority = todo.priority.clamp(1, 5);
 
+    if todo.due_date.is_some() {
+        todo.planned_date = None;
+    }
+
     if !todo.done {
         todo.completed_at = None;
     }
@@ -185,11 +190,7 @@ fn build_focus_route_recommendation(
         .filter(|todo| is_upcoming_focus_todo(todo, today))
         .count();
     let (target_view, message, action_label) = if upcoming_count > 0 {
-        (
-            "upcoming",
-            "今日清空了。看看以后？",
-            "去以后",
-        )
+        ("upcoming", "今日清空了。看看以后？", "去以后")
     } else {
         let inbox_count = state
             .todos
@@ -197,11 +198,7 @@ fn build_focus_route_recommendation(
             .filter(|todo| is_inbox_focus_todo(todo))
             .count();
         if inbox_count > 0 {
-            (
-                "inbox",
-                "安排好的都做完了。看看灵感？",
-                "去灵感",
-            )
+            ("inbox", "安排好的都做完了。看看灵感？", "去灵感")
         } else {
             ("today", "都清完了，回到今日。", "回今日")
         }
@@ -351,8 +348,10 @@ pub async fn add_todo(
     content: String,
     planned_date: Option<String>,
     due_date: Option<String>,
+    today: String,
 ) -> Result<AppState, String> {
     let id = generate_id("todo");
+    let parsed = parse_quick_add(&content, &today, planned_date, due_date, DEFAULT_PRIORITY)?;
 
     let mut state_guard = state_from_cache(&cache)?;
 
@@ -361,7 +360,7 @@ pub async fn add_todo(
         todos: vec![],
         tags: vec![],
     });
-    let (content, tag_ids) = parse_content_and_tags(state, content, vec![]);
+    let (content, tag_ids) = parse_content_and_tags(state, parsed.content, vec![]);
     if content.trim().is_empty() {
         return Err("待办内容不能为空".to_string());
     }
@@ -370,9 +369,9 @@ pub async fn add_todo(
         id,
         content,
         done: false,
-        planned_date,
-        due_date,
-        priority: DEFAULT_PRIORITY,
+        planned_date: parsed.planned_date,
+        due_date: parsed.due_date,
+        priority: parsed.priority,
         tag_ids,
         reminder_enabled: false,
         completed_at: None,
@@ -498,6 +497,10 @@ pub async fn update_todo_planned_date(
 
     if let Some(todo) = state.todos.iter_mut().find(|t| t.id == id) {
         todo.planned_date = planned_date;
+        if todo.planned_date.is_some() {
+            todo.due_date = None;
+            todo.last_notified_on = None;
+        }
     }
 
     save_current_state(&app, state)?;
@@ -522,6 +525,9 @@ pub async fn update_todo_due_date(
 
     if let Some(todo) = state.todos.iter_mut().find(|t| t.id == id) {
         todo.due_date = due_date;
+        if todo.due_date.is_some() {
+            todo.planned_date = None;
+        }
         todo.last_notified_on = None;
     }
 
@@ -813,8 +819,8 @@ pub async fn delete_tag(
 #[cfg(test)]
 mod tests {
     use super::{
-        build_focus_route_recommendation, load_from_disk, normalize_state,
-        parse_content_and_tags, save_to_disk, AppState, Tag, Todo, SCHEMA_VERSION,
+        build_focus_route_recommendation, load_from_disk, normalize_state, parse_content_and_tags,
+        save_to_disk, AppState, Tag, Todo, SCHEMA_VERSION,
     };
 
     fn legacy_todo() -> Todo {
@@ -845,6 +851,22 @@ mod tests {
         assert_eq!(state.todos[0].priority, 5);
         assert!(state.todos[0].tag_ids.is_empty());
         assert_eq!(state.todos[0].completed_at, None);
+    }
+
+    #[test]
+    fn normalizes_conflicting_dates_to_due_date() {
+        let mut todo = legacy_todo();
+        todo.planned_date = Some("2026-07-05".to_string());
+        todo.due_date = Some("2026-07-06".to_string());
+
+        let state = normalize_state(AppState {
+            schema_version: 1,
+            todos: vec![todo],
+            tags: vec![],
+        });
+
+        assert_eq!(state.todos[0].planned_date, None);
+        assert_eq!(state.todos[0].due_date.as_deref(), Some("2026-07-06"));
     }
 
     #[test]
@@ -946,9 +968,8 @@ mod tests {
             tags: vec![],
         };
 
-        let recommendation =
-            build_focus_route_recommendation(&state, "today", "2026-07-04")
-                .expect("recommend upcoming");
+        let recommendation = build_focus_route_recommendation(&state, "today", "2026-07-04")
+            .expect("recommend upcoming");
 
         assert_eq!(recommendation.target_view, "upcoming");
         assert_eq!(recommendation.action_label, "去以后");
@@ -973,9 +994,8 @@ mod tests {
             tags: vec![],
         };
 
-        let recommendation =
-            build_focus_route_recommendation(&state, "upcoming", "2026-07-04")
-                .expect("recommend inbox");
+        let recommendation = build_focus_route_recommendation(&state, "upcoming", "2026-07-04")
+            .expect("recommend inbox");
 
         assert_eq!(recommendation.target_view, "inbox");
         assert_eq!(recommendation.action_label, "去灵感");
@@ -1000,8 +1020,7 @@ mod tests {
             tags: vec![],
         };
 
-        assert!(build_focus_route_recommendation(&state, "today", "2026-07-04")
-            .is_none());
+        assert!(build_focus_route_recommendation(&state, "today", "2026-07-04").is_none());
     }
 
     #[test]
@@ -1012,13 +1031,11 @@ mod tests {
             tags: vec![],
         };
 
-        let recommendation =
-            build_focus_route_recommendation(&state, "inbox", "2026-07-04")
-                .expect("recommend today");
+        let recommendation = build_focus_route_recommendation(&state, "inbox", "2026-07-04")
+            .expect("recommend today");
 
         assert_eq!(recommendation.target_view, "today");
         assert_eq!(recommendation.action_label, "回今日");
-        assert!(build_focus_route_recommendation(&state, "today", "2026-07-04")
-            .is_none());
+        assert!(build_focus_route_recommendation(&state, "today", "2026-07-04").is_none());
     }
 }

@@ -245,26 +245,70 @@ jobs:
         with:
           path: artifacts/
 
+      - name: Rename release assets
+        run: |
+          set -euo pipefail
+
+          version="${GITHUB_REF_NAME#v}"
+          mkdir -p renamed
+
+          find artifacts -type f | while IFS= read -r file; do
+            rel_path="${file#artifacts/}"
+            artifact_name="${rel_path%%/*}"
+            base_name="$(basename "$file")"
+            ext="${base_name##*.}"
+            stem="${base_name%.*}"
+            target=""
+
+            case "$base_name" in
+              *.msi)
+                target="renamed/oasis_${version}_win.msi"
+                ;;
+              *.dmg)
+                if [[ "$artifact_name" == macos-binary-arm64* ]]; then
+                  target="renamed/oasis_${version}_mac_arm64.dmg"
+                else
+                  target="renamed/oasis_${version}_mac_x64.dmg"
+                fi
+                ;;
+              *.AppImage)
+                target="renamed/oasis_${version}_linux_x64.AppImage"
+                ;;
+              *.deb)
+                target="renamed/oasis_${version}_linux_x64.deb"
+                ;;
+              *.rpm)
+                target="renamed/oasis_${version}_linux_x64.rpm"
+                ;;
+              *.apk)
+                if [[ "$stem" == *arm64* ]]; then
+                  target="renamed/oasis_${version}_android_arm64.apk"
+                elif [[ "$stem" == *armeabi* ]]; then
+                  target="renamed/oasis_${version}_android_armv7.apk"
+                elif [[ "$stem" == *x86_64* ]]; then
+                  target="renamed/oasis_${version}_android_x86_64.apk"
+                elif [[ "$stem" == *x86* ]]; then
+                  target="renamed/oasis_${version}_android_x86.apk"
+                else
+                  target="renamed/oasis_${version}_android_universal.apk"
+                fi
+                ;;
+            esac
+
+            if [[ -n "$target" ]]; then
+              cp "$file" "$target"
+            fi
+          done
+
       - name: Display structure
-        run: find artifacts/ -type f | sort
+        run: find renamed/ -type f | sort
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: artifacts/**/*
+          files: renamed/**/*
           draft: true
-          body: |
-            ## 更新内容
-            详见 [CHANGELOG](../CHANGELOG.md) 或提交历史。
-
-            ## 安装说明
-            - **Windows**: 下载 `.msi` 文件并运行安装
-            - **macOS**: 下载 `.dmg` 文件并拖拽到 Applications
-            - **Linux**: 下载 `.AppImage`、`.deb` 或 `.rpm` 文件
-            - **Android**: 下载 `.apk` 文件并安装到 Android 设备
-
-            ## 许可证
-            本项目采用 [GPL-3.0-or-later](../LICENSE) 许可证。
+          body_path: release-note.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

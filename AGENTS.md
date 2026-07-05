@@ -23,6 +23,9 @@
 
 - **Order matters**: `pnpm build` is the `beforeBuildCommand` for Tauri; do not run `pnpm tauri build` before the frontend is built unless Tauri handles it.
 - Vite ignores `src-tauri/` in watch mode. Changing Rust files does not auto-reload the Vite dev server.
+- Do not leave `pnpm dev` or other frontend dev servers running at the end of a task. If a dev server was started for verification, stop it before the final response.
+- When a version is finished and the project is preparing for release, update `release-note.md` before committing or tagging the release.
+- Before cutting a release for a finished version, make sure `release-note.md` is updated and matches the shipped changes.
 
 ## Rust Notes
 

@@ -16,6 +16,7 @@
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 mod input_parser;
+mod quick_add;
 mod store;
 
 use crate::store::{get_storage_path, save_to_disk, TodoCache};

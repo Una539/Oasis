@@ -308,7 +308,7 @@ export function useTodos() {
     plannedDate: string | null,
     dueDate: string | null,
   ) => {
-    const result = await commands.addTodo(content, plannedDate, dueDate);
+    const result = await commands.addTodo(content, plannedDate, dueDate, getTodayDateString());
     setFocusRecommendation(null);
     return handleCommandResult(result);
   };
