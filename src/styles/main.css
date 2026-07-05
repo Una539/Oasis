@@ -141,10 +141,61 @@ body {
   min-height: 52px;
 }
 
+.mobile-todo-track {
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
+}
+
+.mobile-todo-body {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  padding: 0.35rem 0.35rem 0.45rem 0;
+  gap: 0.2rem;
+}
+
+.mobile-todo-main-row,
+.mobile-todo-meta-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.mobile-todo-main-row {
+  gap: 0;
+}
+
+.mobile-todo-meta-row {
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding-left: 46px;
+}
+
+.mobile-todo-meta-row .todo-meta-controls {
+  margin-inline: 0;
+  max-width: none;
+}
+
+.mobile-todo-meta-row .due-date-badge {
+  margin-inline: 0;
+}
+
+.due-date-badge.mobile-editable {
+  cursor: pointer;
+  user-select: none;
+  margin-inline: 0;
+}
+
 @media (hover: none) and (pointer: coarse) {
   .todo-text-input {
     min-height: 52px;
     font-size: 16px;
+  }
+
+  .mobile-todo-main-row .todo-text-input {
+    min-height: 36px;
   }
 }
 
@@ -231,23 +282,81 @@ body {
   padding: 0 0.95rem;
 }
 
+.todo-input-action-button.more {
+  border-left: 1px solid var(--border);
+}
+
 .todo-input-action-button.calendar {
-  margin-left: 0.2rem;
+  width: 48px;
+  min-width: 48px;
+  height: 48px;
+  min-height: 48px;
+  flex: 0 0 48px;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0;
+  background: var(--surface);
+}
+
+.todo-input-action-button.calendar[aria-pressed="true"] {
+  color: #2563eb;
+  border-color: #93c5fd;
+  background: #dbeafe;
 }
 
 .todo-input-action-button.submit {
   border-radius: 0 10px 10px 0;
 }
 
+.todo-input-manual-controls {
+  --todo-input-manual-width: calc(96px + 0.42rem + 0.9rem);
+  display: flex;
+  align-items: center;
+  gap: 0.42rem;
+  width: var(--todo-input-manual-width);
+  flex: 0 0 var(--todo-input-manual-width);
+  min-width: 0;
+  padding: 0 0.45rem;
+  box-sizing: border-box;
+  border-left: 1px solid var(--border);
+  overflow: hidden;
+  transform-origin: right center;
+  animation: todo-input-manual-push 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes todo-input-manual-push {
+  from {
+    width: 0;
+    flex-basis: 0;
+    padding-inline: 0;
+    gap: 0;
+    opacity: 0;
+    transform: translateX(0.5rem);
+  }
+
+  to {
+    width: var(--todo-input-manual-width);
+    flex-basis: var(--todo-input-manual-width);
+    padding-inline: 0.45rem;
+    gap: 0.42rem;
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 .todo-required-checkbox {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.42rem;
+  width: 48px;
+  height: 48px;
   min-height: 48px;
-  padding: 0 0.72rem;
-  border-left: 1px solid var(--border);
-  background: transparent;
+  box-sizing: border-box;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
   color: var(--text-secondary);
   cursor: pointer;
   font-size: 13px;
@@ -256,47 +365,49 @@ body {
   transition: background 0.15s ease, color 0.15s ease;
 }
 
+.todo-required-checkbox[data-state="checked"] {
+  color: #2563eb;
+  border-color: #93c5fd;
+  background: #dbeafe;
+}
+
 .todo-required-checkbox:hover,
 .todo-required-checkbox:focus-within {
   background: var(--surface-hover);
   color: var(--text);
 }
 
+.todo-required-checkbox[data-state="checked"]:hover,
+.todo-required-checkbox[data-state="checked"]:focus-within {
+  color: #1d4ed8;
+  border-color: #60a5fa;
+  background: #bfdbfe;
+}
+
 .todo-required-checkbox-control {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.05rem;
-  height: 1.05rem;
-  border: 1.5px solid var(--text-muted);
-  border-radius: 5px;
-  background: var(--surface);
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
   flex-shrink: 0;
-  color: var(--bg);
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  color: currentColor;
+  transition: transform 0.15s ease;
 }
 
 .todo-required-checkbox-control[data-state="checked"] {
-  background: var(--text);
-  border-color: var(--text);
+  background: transparent;
 }
 
 .todo-required-checkbox:hover .todo-required-checkbox-control {
-  border-color: var(--text-secondary);
+  color: currentColor;
 }
 
 .todo-required-checkbox:active .todo-required-checkbox-control {
   transform: scale(0.94);
-}
-
-.todo-required-checkbox-indicator {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.todo-required-checkbox-label {
-  line-height: 1;
 }
 
 @media (hover: none) and (pointer: coarse) {
@@ -304,10 +415,30 @@ body {
     border-radius: 0 16px 16px 0;
   }
 
-  .todo-required-checkbox {
+  .todo-input-manual-controls {
+    --todo-input-manual-width: calc(104px + 0.35rem + 0.7rem);
+    gap: 0.35rem;
+    padding: 0 0.35rem;
+  }
+
+  .todo-input-action-button.calendar {
+    width: 52px;
+    min-width: 52px;
+    height: 52px;
     min-height: 52px;
-    padding: 0 0.58rem;
-    font-size: 12px;
+    flex-basis: 52px;
+  }
+
+  .todo-required-checkbox {
+    width: 52px;
+    height: 52px;
+    min-height: 52px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .todo-input-manual-controls {
+    animation: none;
   }
 }
 
@@ -480,6 +611,7 @@ body {
   flex-shrink: 0;
 }
 
+.date-chip-commit,
 .date-chip-clear {
   display: inline-flex;
   align-items: center;
@@ -493,6 +625,16 @@ body {
   border-radius: 999px;
   flex-shrink: 0;
   transition: color 0.15s ease, background 0.15s ease;
+}
+
+.date-chip-commit {
+  color: var(--text-secondary);
+}
+
+.date-chip-commit:hover,
+.date-chip-commit:focus-visible {
+  color: var(--bg);
+  background: var(--text);
 }
 
 .date-chip-clear:hover {
@@ -1156,7 +1298,7 @@ body {
 }
 
 .priority-stripe.mobile {
-  min-height: 52px;
+  min-height: 78px;
   border-radius: 5px 0 0 5px;
 }
 

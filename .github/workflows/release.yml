@@ -116,10 +116,6 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: Oasis-v__VERSION__
-          releaseName: 'Oasis v__VERSION__'
-          releaseBody: 'placeholder'
-          releaseDraft: true
           args: ${{ matrix.args }}
 
       - name: Upload artifact
@@ -163,10 +159,6 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: Oasis-v__VERSION__
-          releaseName: 'Oasis v__VERSION__'
-          releaseBody: 'placeholder'
-          releaseDraft: true
           args: ''
 
       - name: Upload artifact
@@ -215,10 +207,6 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: Oasis-v__VERSION__
-          releaseName: 'Oasis v__VERSION__'
-          releaseBody: 'placeholder'
-          releaseDraft: true
           args: ''
 
       - name: Upload artifact

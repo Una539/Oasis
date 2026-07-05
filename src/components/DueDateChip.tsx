@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import { createEffect, createSignal, Show } from "solid-js";
-import { CalendarClock, X } from "lucide-solid";
+import { CalendarClock, Check, X } from "lucide-solid";
 import { getTodayDateString } from "../utils/date";
 
 interface DueDateChipProps {
@@ -28,6 +28,7 @@ interface DueDateChipProps {
   triggerLabel: string;
   triggerTitle: string;
   showValue?: boolean;
+  hideTrigger?: boolean;
 }
 
 interface ParsedDate {
@@ -82,7 +83,7 @@ function cleanDatePart(value: string, maxLength: number) {
 
 function focusInput(input: HTMLInputElement | undefined | null) {
   input?.focus();
-  input?.setSelectionRange?.(input.value.length, input.value.length);
+  input?.select();
 }
 
 export default function DueDateChip(props: DueDateChipProps) {
@@ -151,7 +152,7 @@ export default function DueDateChip(props: DueDateChipProps) {
     <Show
       when={props.open}
       fallback={
-        showValue() ? (
+        props.hideTrigger ? null : showValue() ? (
           <div
             role="button"
             tabindex="0"
@@ -250,6 +251,16 @@ export default function DueDateChip(props: DueDateChipProps) {
             maxLength={2}
           />
         </div>
+        <button
+          type="button"
+          class="date-chip-commit"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={commitIfComplete}
+          aria-label="确认日期"
+          title="确认日期 (Enter)"
+        >
+          <Check size={13} />
+        </button>
         <button
           type="button"
           class="date-chip-clear"

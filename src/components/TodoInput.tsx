@@ -16,7 +16,7 @@
 
 import { createSignal, Show } from "solid-js";
 import { Checkbox } from "@ark-ui/solid/checkbox";
-import { Calendar, CheckIcon, Plus } from "lucide-solid";
+import { Calendar, ChevronLeft, ChevronRight, Crosshair, Plus } from "lucide-solid";
 import { getTodayDateString } from "../utils/date";
 import DueDateChip from "./DueDateChip";
 
@@ -32,6 +32,7 @@ export default function TodoInput(props: TodoInputProps) {
   const [newContent, setContent] = createSignal("");
   const [newDate, setNewDate] = createSignal("");
   const [required, setRequired] = createSignal(false);
+  const [controlsOpen, setControlsOpen] = createSignal(false);
   const [dateOpen, setDateOpen] = createSignal(false);
   let handledDateTogglePointer = false;
 
@@ -49,6 +50,7 @@ export default function TodoInput(props: TodoInputProps) {
       setContent("");
       setNewDate("");
       setRequired(false);
+      setControlsOpen(false);
       setDateOpen(false);
     }
   };
@@ -69,6 +71,14 @@ export default function TodoInput(props: TodoInputProps) {
     handleDateOpenChange(!dateOpen());
   };
 
+  const toggleControlsOpen = () => {
+    const nextOpen = !controlsOpen();
+    setControlsOpen(nextOpen);
+    if (!nextOpen) {
+      setDateOpen(false);
+    }
+  };
+
   return (
     <form class="todo-input-form flex flex-col gap-2 flex-shrink-0" onSubmit={addTodo}>
       {/* Input row */}
@@ -83,42 +93,57 @@ export default function TodoInput(props: TodoInputProps) {
           />
           <div class="w-px bg-border flex-shrink-0" />
 
+          <Show when={controlsOpen()}>
+            <div id="todo-input-manual-controls" class="todo-input-manual-controls">
+              <button
+                type="button"
+                class="todo-input-action-button calendar flex items-center justify-center border-none bg-transparent cursor-pointer color-text-muted transition-all duration-150 flex-shrink-0 min-h-12 hover:color-text hover:bg-surface-hover active:opacity-80"
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  handledDateTogglePointer = true;
+                  toggleDateOpen();
+                }}
+                onClick={() => {
+                  if (handledDateTogglePointer) {
+                    handledDateTogglePointer = false;
+                    return;
+                  }
+                  toggleDateOpen();
+                }}
+                aria-label={required() ? "选择必做日期" : "选择想做日期"}
+                title={required() ? "选择必做日期" : "选择想做日期"}
+                aria-pressed={dateOpen()}
+              >
+                <Calendar size={18} />
+              </button>
+
+              <Checkbox.Root
+                class="todo-required-checkbox"
+                checked={required()}
+                onCheckedChange={(details) => setRequired(details.checked === true)}
+                title="标记为必做"
+              >
+                <Checkbox.Control class="todo-required-checkbox-control">
+                  <Crosshair size={18} strokeWidth={2.2} />
+                </Checkbox.Control>
+                <Checkbox.HiddenInput />
+              </Checkbox.Root>
+            </div>
+          </Show>
+
           <button
             type="button"
-            class="todo-input-action-button calendar flex items-center justify-center border-none bg-transparent cursor-pointer color-text-muted transition-all duration-150 flex-shrink-0 min-w-12 min-h-12 hover:color-text hover:bg-surface-hover active:opacity-80"
-            onPointerDown={(event) => {
-              event.preventDefault();
-              handledDateTogglePointer = true;
-              toggleDateOpen();
-            }}
-            onClick={() => {
-              if (handledDateTogglePointer) {
-                handledDateTogglePointer = false;
-                return;
-              }
-              toggleDateOpen();
-            }}
-            aria-label={required() ? "选择必做日期" : "选择想做日期"}
-            title={required() ? "选择必做日期" : "选择想做日期"}
-            aria-pressed={dateOpen()}
+            class="todo-input-action-button more flex items-center justify-center border-none bg-transparent cursor-pointer color-text-muted transition-all duration-150 flex-shrink-0 min-w-12 min-h-12 hover:color-text hover:bg-surface-hover active:opacity-80"
+            onClick={toggleControlsOpen}
+            aria-label={controlsOpen() ? "收起手动选项" : "展开手动选项"}
+            title={controlsOpen() ? "收起手动选项" : "展开手动选项"}
+            aria-expanded={controlsOpen()}
+            aria-controls="todo-input-manual-controls"
           >
-            <Calendar size={20} />
+            <Show when={controlsOpen()} fallback={<ChevronLeft size={20} />}>
+              <ChevronRight size={20} />
+            </Show>
           </button>
-
-          <Checkbox.Root
-            class="todo-required-checkbox"
-            checked={required()}
-            onCheckedChange={(details) => setRequired(details.checked === true)}
-            title="标记为必做"
-          >
-            <Checkbox.Control class="todo-required-checkbox-control">
-              <Checkbox.Indicator class="todo-required-checkbox-indicator">
-                <CheckIcon size={12} strokeWidth={2.5} />
-              </Checkbox.Indicator>
-            </Checkbox.Control>
-            <Checkbox.Label class="todo-required-checkbox-label">必做</Checkbox.Label>
-            <Checkbox.HiddenInput />
-          </Checkbox.Root>
 
           <button
             type="submit"
@@ -132,7 +157,7 @@ export default function TodoInput(props: TodoInputProps) {
       </div>
 
       {/* Date input popover */}
-      <Show when={dateOpen()}>
+      <Show when={controlsOpen() && dateOpen()}>
         <div class="date-chip-row">
           <DueDateChip
             open={dateOpen()}

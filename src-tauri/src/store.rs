@@ -1002,6 +1002,32 @@ mod tests {
     }
 
     #[test]
+    fn recommends_inbox_from_today_when_upcoming_is_empty() {
+        let state = AppState {
+            schema_version: SCHEMA_VERSION,
+            todos: vec![Todo {
+                id: "todo-1".to_string(),
+                content: "idea".to_string(),
+                done: false,
+                planned_date: None,
+                due_date: None,
+                priority: 3,
+                tag_ids: vec![],
+                reminder_enabled: false,
+                completed_at: None,
+                last_notified_on: None,
+            }],
+            tags: vec![],
+        };
+
+        let recommendation = build_focus_route_recommendation(&state, "today", "2026-07-04")
+            .expect("recommend inbox");
+
+        assert_eq!(recommendation.target_view, "inbox");
+        assert_eq!(recommendation.action_label, "去灵感");
+    }
+
+    #[test]
     fn does_not_recommend_when_today_still_has_work() {
         let state = AppState {
             schema_version: SCHEMA_VERSION,

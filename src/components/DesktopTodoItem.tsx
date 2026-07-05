@@ -35,10 +35,8 @@ interface DesktopTodoItemProps {
 
 export default function DesktopTodoItem(props: DesktopTodoItemProps) {
   const [draftContent, setDraftContent] = createSignal(props.todo.content);
-  const [plannedDatePickerOpen, setPlannedDatePickerOpen] = createSignal(false);
-  const [draftPlannedDate, setDraftPlannedDate] = createSignal("");
   const [datePickerOpen, setDatePickerOpen] = createSignal(false);
-  const [draftDueDate, setDraftDueDate] = createSignal("");
+  const [draftDate, setDraftDate] = createSignal("");
 
   createEffect(() => {
     setDraftContent(props.todo.content);
@@ -50,27 +48,37 @@ export default function DesktopTodoItem(props: DesktopTodoItemProps) {
     await props.onUpdate(props.todo.id, content);
   };
 
-  const handlePlannedDateClear = async () => {
-    await props.onUpdatePlannedDate(props.todo.id, null);
-    setPlannedDatePickerOpen(false);
-    setDraftPlannedDate("");
-  };
-
   const handleDateClear = async () => {
-    await props.onUpdateDueDate(props.todo.id, null);
+    if (props.todo.due_date) {
+      await props.onUpdateDueDate(props.todo.id, null);
+    } else {
+      await props.onUpdatePlannedDate(props.todo.id, null);
+    }
     setDatePickerOpen(false);
-    setDraftDueDate("");
-  };
-
-  const handlePlannedOpenChange = (open: boolean) => {
-    setPlannedDatePickerOpen(open);
-    setDraftPlannedDate(open ? getTodayDateString() : "");
+    setDraftDate("");
   };
 
   const handleOpenChange = (open: boolean) => {
     setDatePickerOpen(open);
-    setDraftDueDate(open ? getTodayDateString() : "");
+    setDraftDate(
+      open ? props.todo.due_date || props.todo.planned_date || getTodayDateString() : "",
+    );
   };
+
+  const handleDateChange = (value: string) => {
+    setDraftDate(value);
+    if (props.todo.due_date) {
+      void props.onUpdateDueDate(props.todo.id, value || null);
+    } else {
+      void props.onUpdatePlannedDate(props.todo.id, value || null);
+    }
+  };
+
+  const activeDateValue = () =>
+    draftDate() || props.todo.due_date || props.todo.planned_date || "";
+
+  const activeDateLabel = () =>
+    props.todo.due_date ? "设置截止日期" : "设置想做日期";
 
   const dueDateClass = () => {
     if (!props.todo.due_date) return "due-date-badge";
@@ -136,31 +144,14 @@ export default function DesktopTodoItem(props: DesktopTodoItemProps) {
         </span>
       )}
       <DueDateChip
-        open={plannedDatePickerOpen()}
-        value={draftPlannedDate() || props.todo.planned_date || ""}
-        onOpenChange={handlePlannedOpenChange}
-        onValueChange={(value) => {
-          setDraftPlannedDate(value);
-          void props.onUpdatePlannedDate(props.todo.id, value || null);
-        }}
-        onClear={handlePlannedDateClear}
-        triggerClass="todo-icon-button"
-        triggerLabel="设置想做日期"
-        triggerTitle="想做日期"
-        showValue={false}
-      />
-      <DueDateChip
         open={datePickerOpen()}
-        value={draftDueDate() || props.todo.due_date || ""}
+        value={activeDateValue()}
         onOpenChange={handleOpenChange}
-        onValueChange={(value) => {
-          setDraftDueDate(value);
-          void props.onUpdateDueDate(props.todo.id, value || null);
-        }}
+        onValueChange={handleDateChange}
         onClear={handleDateClear}
         triggerClass="todo-icon-button"
-        triggerLabel="设置截止日期"
-        triggerTitle="截止日期"
+        triggerLabel={activeDateLabel()}
+        triggerTitle={props.todo.due_date ? "截止日期" : "想做日期"}
         showValue={false}
       />
       <button

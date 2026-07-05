@@ -98,7 +98,7 @@ function createSwipeToDelete(onDelete: () => void): SwipeResult {
 
   const trackClass = createMemo(() => {
     const state = swipeState();
-    let cls = "swipe-track flex items-center bg-surface todo-card-radius border border-solid border-surface relative z-1";
+    let cls = "swipe-track mobile-todo-track bg-surface todo-card-radius border border-solid border-surface relative z-1";
     if (state === "snapping") cls += " snapping-back";
     if (state === "slide-out") cls += " slide-out";
     if (state === "deleting") cls += " deleting";
@@ -129,10 +129,8 @@ export default function MobileTodoItem(props: MobileTodoItemProps) {
   const { offset, trackClass, onTouchStart, onTouchMove, onTouchEnd } =
     createSwipeToDelete(() => props.onDelete(props.todo.id));
   const [draftContent, setDraftContent] = createSignal(props.todo.content);
-  const [plannedDatePickerOpen, setPlannedDatePickerOpen] = createSignal(false);
-  const [draftPlannedDate, setDraftPlannedDate] = createSignal("");
   const [datePickerOpen, setDatePickerOpen] = createSignal(false);
-  const [draftDueDate, setDraftDueDate] = createSignal("");
+  const [draftDate, setDraftDate] = createSignal("");
 
   createEffect(() => {
     setDraftContent(props.todo.content);
@@ -144,27 +142,39 @@ export default function MobileTodoItem(props: MobileTodoItemProps) {
     await props.onUpdate(props.todo.id, content);
   };
 
-  const handlePlannedDateClear = async () => {
-    await props.onUpdatePlannedDate(props.todo.id, null);
-    setPlannedDatePickerOpen(false);
-    setDraftPlannedDate("");
-  };
-
   const handleDateClear = async () => {
-    await props.onUpdateDueDate(props.todo.id, null);
+    if (props.todo.due_date) {
+      await props.onUpdateDueDate(props.todo.id, null);
+    } else {
+      await props.onUpdatePlannedDate(props.todo.id, null);
+    }
     setDatePickerOpen(false);
-    setDraftDueDate("");
-  };
-
-  const handlePlannedOpenChange = (open: boolean) => {
-    setPlannedDatePickerOpen(open);
-    setDraftPlannedDate(open ? getTodayDateString() : "");
+    setDraftDate("");
   };
 
   const handleOpenChange = (open: boolean) => {
     setDatePickerOpen(open);
-    setDraftDueDate(open ? getTodayDateString() : "");
+    setDraftDate(
+      open ? props.todo.due_date || props.todo.planned_date || getTodayDateString() : "",
+    );
   };
+
+  const openDateEditor = () => {
+    setDraftDate(props.todo.due_date || props.todo.planned_date || getTodayDateString());
+    setDatePickerOpen(true);
+  };
+
+  const handleDateChange = (value: string) => {
+    setDraftDate(value);
+    if (props.todo.due_date) {
+      void props.onUpdateDueDate(props.todo.id, value || null);
+    } else {
+      void props.onUpdatePlannedDate(props.todo.id, value || null);
+    }
+  };
+
+  const activeDateValue = () =>
+    draftDate() || props.todo.due_date || props.todo.planned_date || "";
 
   const dueDateClass = () => {
     if (!props.todo.due_date) return "due-date-badge";
@@ -195,72 +205,71 @@ export default function MobileTodoItem(props: MobileTodoItemProps) {
           class="priority-stripe mobile"
           style={{ "--priority-color": getPriorityColor(props.todo.priority) }}
         />
-        <input
-          type="checkbox"
-          class="todo-checkbox"
-          checked={props.todo.done}
-          onChange={() => props.onToggle(props.todo.id)}
-        />
-        <input
-          type="text"
-          class={props.todo.done ? "todo-text-input done" : "todo-text-input"}
-          value={draftContent()}
-          onInput={(event) => setDraftContent(event.currentTarget.value)}
-          onBlur={() => void commitContent()}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.currentTarget.blur();
-            }
-          }}
-        />
-        <TodoMetaControls
-          todo={props.todo}
-          onUpdatePriority={props.onUpdatePriority}
-          onUpdateReminder={props.onUpdateReminder}
-        />
-        {props.todo.planned_date && (
-          <span class="due-date-badge" text="[12px]" whitespace-nowrap flex-shrink-0>
-            想 {props.todo.planned_date}
-          </span>
-        )}
-        {props.todo.due_date && (
-          <span
-            class={dueDateClass()}
-            text="[12px]"
-            whitespace-nowrap
-            flex-shrink-0
-          >
-            截 {props.todo.due_date}
-          </span>
-        )}
-        <DueDateChip
-          open={plannedDatePickerOpen()}
-          value={draftPlannedDate() || props.todo.planned_date || ""}
-          onOpenChange={handlePlannedOpenChange}
-          onValueChange={(value) => {
-            setDraftPlannedDate(value);
-            void props.onUpdatePlannedDate(props.todo.id, value || null);
-          }}
-          onClear={handlePlannedDateClear}
-          triggerClass="todo-icon-button mobile"
-          triggerLabel="设置想做日期"
-          triggerTitle="想做日期"
-          showValue={false}
-        />
-        <DueDateChip
-          open={datePickerOpen()}
-          value={draftDueDate() || props.todo.due_date || ""}
-          onOpenChange={handleOpenChange}
-          onValueChange={(value) => {
-            setDraftDueDate(value);
-            void props.onUpdateDueDate(props.todo.id, value || null);
-          }}
-          onClear={handleDateClear}
-          triggerClass="todo-icon-button mobile"
-          triggerLabel="设置截止日期"
-          triggerTitle="截止日期"
-          showValue={false}
-        />
+        <div class="mobile-todo-body">
+          <div class="mobile-todo-main-row">
+            <input
+              type="checkbox"
+              class="todo-checkbox"
+              checked={props.todo.done}
+              onChange={() => props.onToggle(props.todo.id)}
+            />
+            <input
+              type="text"
+              class={props.todo.done ? "todo-text-input done" : "todo-text-input"}
+              value={draftContent()}
+              onInput={(event) => setDraftContent(event.currentTarget.value)}
+              onBlur={() => void commitContent()}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.currentTarget.blur();
+                }
+              }}
+            />
+          </div>
+          <div class="mobile-todo-meta-row">
+            <TodoMetaControls
+              todo={props.todo}
+              onUpdatePriority={props.onUpdatePriority}
+              onUpdateReminder={props.onUpdateReminder}
+            />
+            {props.todo.planned_date && (
+              <span
+                class="due-date-badge mobile-editable"
+                text="[12px]"
+                whitespace-nowrap
+                flex-shrink-0
+                onDblClick={openDateEditor}
+                title="双击修改想做日期"
+              >
+                想 {props.todo.planned_date}
+              </span>
+            )}
+            {props.todo.due_date && (
+              <span
+                class={`${dueDateClass()} mobile-editable`}
+                text="[12px]"
+                whitespace-nowrap
+                flex-shrink-0
+                onDblClick={openDateEditor}
+                title="双击修改截止日期"
+              >
+                截 {props.todo.due_date}
+              </span>
+            )}
+            <DueDateChip
+              open={datePickerOpen()}
+              value={activeDateValue()}
+              onOpenChange={handleOpenChange}
+              onValueChange={handleDateChange}
+              onClear={handleDateClear}
+              triggerClass="todo-icon-button mobile"
+              triggerLabel={props.todo.due_date ? "设置截止日期" : "设置想做日期"}
+              triggerTitle={props.todo.due_date ? "截止日期" : "想做日期"}
+              showValue={false}
+              hideTrigger
+            />
+          </div>
+        </div>
         <button
           class="todo-delete-button mobile"
           type="button"
