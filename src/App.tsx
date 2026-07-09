@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import { useDeviceDetect } from "./hooks/useDeviceDetect";
+import { useNotificationPermission } from "./hooks/useNotificationPermission";
 import { useTodos } from "./hooks/useTodos";
 import MobileApp from "./components/MobileApp";
 import DesktopApp from "./components/DesktopApp";
@@ -25,6 +26,8 @@ function App() {
     partitions,
     focusRecommendation,
     stats,
+    buildSearchResultGroups,
+    runDueNotifications,
     handleAdd,
     handleDelete,
     handleToggle,
@@ -35,6 +38,7 @@ function App() {
     handleUpdateReminder,
     clearFocusRecommendation,
   } = useTodos();
+  useNotificationPermission(deviceType, runDueNotifications);
 
   return (
     <>
@@ -43,6 +47,7 @@ function App() {
           partitions={partitions()}
           focusRecommendation={focusRecommendation()}
           stats={stats()}
+          buildSearchResultGroups={buildSearchResultGroups}
           handleAdd={handleAdd}
           handleDelete={handleDelete}
           handleToggle={handleToggle}
@@ -58,6 +63,7 @@ function App() {
           partitions={partitions()}
           focusRecommendation={focusRecommendation()}
           stats={stats()}
+          buildSearchResultGroups={buildSearchResultGroups}
           handleAdd={handleAdd}
           handleDelete={handleDelete}
           handleToggle={handleToggle}

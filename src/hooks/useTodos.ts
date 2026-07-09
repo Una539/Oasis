@@ -37,6 +37,8 @@ export {
   type CorePartitionKey,
   type ViewKey,
   type Partitions,
+  type SearchPartitionKey,
+  type SearchResultGroup,
   type FocusRouteRecommendation,
   type TodoStats,
 };
@@ -66,8 +68,14 @@ type AppState = {
 
 type CorePartitionKey = "today" | "upcoming" | "inbox";
 type ViewKey = CorePartitionKey | "stats";
+type SearchPartitionKey = CorePartitionKey | "completed";
 
 type Partitions = Record<CorePartitionKey, Todo[]>;
+type SearchResultGroup = {
+  key: SearchPartitionKey;
+  label: string;
+  todos: Todo[];
+};
 type FocusRouteRecommendation = GeneratedFocusRouteRecommendation & {
   target_view: CorePartitionKey;
 };
@@ -78,10 +86,17 @@ interface TrendDay {
   count: number;
 }
 
+interface RecentCompletedTodo {
+  id: string;
+  content: string;
+  completedAt: string;
+}
+
 interface TodoStats {
   weekCompletedCount: number;
   streakDays: number;
   trend: TrendDay[];
+  recentCompleted: RecentCompletedTodo[];
 }
 
 const EMPTY_STATE: AppState = {
@@ -91,6 +106,12 @@ const EMPTY_STATE: AppState = {
 };
 
 const CORE_PARTITION_KEYS: CorePartitionKey[] = ["today", "upcoming", "inbox"];
+const SEARCH_GROUP_LABELS: Record<SearchPartitionKey, string> = {
+  today: "今日",
+  upcoming: "以后",
+  inbox: "灵感",
+  completed: "已完成",
+};
 
 function isCorePartitionKey(view: ViewKey): view is CorePartitionKey {
   return CORE_PARTITION_KEYS.includes(view as CorePartitionKey);
@@ -139,8 +160,6 @@ function startOfWeek(date: Date): Date {
 }
 
 function partitionTodos(todos: Todo[]): Partitions {
-  const today = getTodayDateString();
-
   const result: Partitions = {
     today: [],
     upcoming: [],
@@ -152,25 +171,83 @@ function partitionTodos(todos: Todo[]): Partitions {
       continue;
     }
 
-    const plannedDate = todo.planned_date;
-    const dueDate = todo.due_date;
-
-    if (
-      (plannedDate !== null && plannedDate <= today) ||
-      (dueDate !== null && dueDate <= today)
-    ) {
-      result.today.push(todo);
-    } else if (
-      (plannedDate !== null && plannedDate > today) ||
-      (dueDate !== null && dueDate > today)
-    ) {
-      result.upcoming.push(todo);
-    } else {
-      result.inbox.push(todo);
-    }
+    result[getTodoPartition(todo)].push(todo);
   }
 
   return result;
+}
+
+function getTodoPartition(todo: Todo): CorePartitionKey {
+  const today = getTodayDateString();
+  const plannedDate = todo.planned_date;
+  const dueDate = todo.due_date;
+
+  if (
+    (plannedDate !== null && plannedDate <= today) ||
+    (dueDate !== null && dueDate <= today)
+  ) {
+    return "today";
+  }
+
+  if (
+    (plannedDate !== null && plannedDate > today) ||
+    (dueDate !== null && dueDate > today)
+  ) {
+    return "upcoming";
+  }
+
+  return "inbox";
+}
+
+function getTodoSearchText(todo: Todo): string {
+  return [
+    todo.content,
+    todo.planned_date ? `想做 ${todo.planned_date}` : "",
+    todo.due_date ? `截止 ${todo.due_date}` : "",
+    todo.completed_at ? `完成 ${todo.completed_at}` : "",
+    `p${todo.priority}`,
+    `!${todo.priority}`,
+    `优先级 ${todo.priority}`,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLocaleLowerCase();
+}
+
+function matchesSearchQuery(todo: Todo, query: string): boolean {
+  const terms = query
+    .trim()
+    .toLocaleLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (terms.length === 0) return false;
+
+  const haystack = getTodoSearchText(todo);
+  return terms.every((term) => haystack.includes(term));
+}
+
+function buildSearchResultGroups(todos: Todo[], query: string): SearchResultGroup[] {
+  const grouped: Record<SearchPartitionKey, Todo[]> = {
+    today: [],
+    upcoming: [],
+    inbox: [],
+    completed: [],
+  };
+
+  for (const todo of todos) {
+    if (!matchesSearchQuery(todo, query)) continue;
+    const key = todo.done ? "completed" : getTodoPartition(todo);
+    grouped[key].push(todo);
+  }
+
+  const order: SearchPartitionKey[] = ["today", "upcoming", "inbox", "completed"];
+  return order
+    .map((key) => ({
+      key,
+      label: SEARCH_GROUP_LABELS[key],
+      todos: grouped[key],
+    }))
+    .filter((group) => group.todos.length > 0);
 }
 
 function getCompletionDate(todo: Todo): string | null {
@@ -208,19 +285,31 @@ function calculateStats(todos: Todo[]): TodoStats {
     };
   });
 
+  const recentCompleted = todos
+    .filter((todo) => todo.done && todo.completed_at !== null)
+    .sort((left, right) => right.completed_at!.localeCompare(left.completed_at!))
+    .slice(0, 5)
+    .map((todo) => ({
+      id: todo.id,
+      content: todo.content,
+      completedAt: todo.completed_at!,
+    }));
+
   return {
     weekCompletedCount,
     streakDays,
     trend,
+    recentCompleted,
   };
 }
 
-function isTodayDueReminder(todo: Todo, today: string): boolean {
+function shouldSendStartupReminder(todo: Todo, today: string): boolean {
   return (
     !todo.done &&
     todo.reminder_enabled &&
-    todo.due_date === today &&
-    todo.last_notified_on !== today
+    todo.last_notified_on !== today &&
+    ((todo.planned_date !== null && todo.planned_date <= today) ||
+      (todo.due_date !== null && todo.due_date <= today))
   );
 }
 
@@ -318,12 +407,12 @@ export function useTodos() {
     handleCommandResult(result);
   };
 
-  const handleToggle = async (id: string, currentView: CorePartitionKey) => {
+  const handleToggle = async (id: string, currentView?: CorePartitionKey) => {
     const todo = state.todos.find((item) => item.id === id);
     const willComplete = todo?.done === false;
     const completedAt = todo?.done ? null : getTodayDateString();
     const result = await commands.toggleTodo(id, completedAt);
-    if (handleCommandResult(result) && willComplete) {
+    if (handleCommandResult(result) && willComplete && currentView) {
       void requestFocusRecommendation(currentView);
     }
   };
@@ -394,7 +483,7 @@ export function useTodos() {
 
     const today = getTodayDateString();
     const pendingTodos = state.todos.filter((todo) =>
-      isTodayDueReminder(todo, today),
+      shouldSendStartupReminder(todo, today),
     );
     if (pendingTodos.length === 0) return;
 
@@ -455,7 +544,10 @@ export function useTodos() {
     partitions,
     focusRecommendation,
     stats,
+    buildSearchResultGroups: (query: string) =>
+      buildSearchResultGroups(state.todos, query),
     getTodosForView,
+    runDueNotifications,
     requestFocusRecommendation,
     clearFocusRecommendation,
     handleAdd,

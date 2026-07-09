@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { For } from "solid-js";
+import { For, Show } from "solid-js";
 import { type TodoStats } from "../hooks/useTodos";
 
 interface StatsPanelProps {
@@ -66,6 +66,28 @@ export default function StatsPanel(props: StatsPanelProps) {
             )}
           </For>
         </div>
+      </article>
+
+      <article class="recent-completed-card">
+        <header>
+          <span>近期完成</span>
+          <small>最近 5 条</small>
+        </header>
+        <Show
+          when={props.stats.recentCompleted.length > 0}
+          fallback={<p class="recent-completed-empty">还没有完成的待办。</p>}
+        >
+          <ol class="recent-completed-list">
+            <For each={props.stats.recentCompleted}>
+              {(todo) => (
+                <li class="recent-completed-item">
+                  <span>{todo.content}</span>
+                  <time datetime={todo.completedAt}>{todo.completedAt.slice(0, 10)}</time>
+                </li>
+              )}
+            </For>
+          </ol>
+        </Show>
       </article>
     </section>
   );

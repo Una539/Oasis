@@ -22,16 +22,18 @@ import {
 } from "@ark-ui/solid/select";
 import { For, Index, Show, createSignal } from "solid-js";
 import { Portal } from "solid-js/web";
-import { BarChart3Icon, ChevronsUpDownIcon, XIcon } from "lucide-solid";
+import { BarChart3Icon, ChevronsUpDownIcon, SearchIcon, XIcon } from "lucide-solid";
 import {
   type CorePartitionKey,
   type FocusRouteRecommendation,
   type Partitions,
+  type SearchResultGroup,
   type TodoStats,
 } from "../hooks/useTodos";
 import TodoInput from "./TodoInput";
 import MobileTodoItem from "./MobileTodoItem";
 import StatsPanel from "./StatsPanel";
+import SearchPanel from "./SearchPanel";
 
 interface Item {
   label: string;
@@ -42,13 +44,14 @@ interface MobileAppProps {
   partitions: Partitions;
   focusRecommendation: FocusRouteRecommendation | null;
   stats: TodoStats;
+  buildSearchResultGroups: (query: string) => SearchResultGroup[];
   handleAdd: (
     content: string,
     plannedDate: string | null,
     dueDate: string | null,
   ) => Promise<boolean>;
   handleDelete: (id: string) => Promise<void>;
-  handleToggle: (id: string, currentView: CorePartitionKey) => Promise<void>;
+  handleToggle: (id: string, currentView?: CorePartitionKey) => Promise<void>;
   handleUpdate: (id: string, content: string) => Promise<void>;
   handleUpdatePlannedDate: (
     id: string,
@@ -77,6 +80,7 @@ const PARTITION_COLLECTION = createSelectCollection<Item>({
 export default function MobileApp(props: MobileAppProps) {
   const [currentView, setCurrentView] = createSignal<CorePartitionKey>("today");
   const [statsOpen, setStatsOpen] = createSignal(false);
+  const [searchOpen, setSearchOpen] = createSignal(false);
 
   const handleValueChange = (details: SelectValueChangeDetails<Item>) => {
     const nextView = details.value[0] as CorePartitionKey | undefined;
@@ -88,6 +92,10 @@ export default function MobileApp(props: MobileAppProps) {
 
   const handleStatsOpenChange = (details: DrawerOpenChangeDetails) => {
     setStatsOpen(details.open);
+  };
+
+  const handleSearchOpenChange = (details: DrawerOpenChangeDetails) => {
+    setSearchOpen(details.open);
   };
 
   const acceptFocusRecommendation = () => {
@@ -170,12 +178,10 @@ export default function MobileApp(props: MobileAppProps) {
         flex-col
         px-4
         pt-4
-        pb="[calc(20px+env(safe-area-inset-bottom,0px))]"
+        pb="[calc(96px+env(safe-area-inset-bottom,0px))]"
         gap-3
         overflow-hidden
       >
-        <TodoInput onAdd={props.handleAdd} />
-
         <Show when={props.focusRecommendation}>
           {(recommendation) => (
             <div class="focus-route-banner mobile">
@@ -208,10 +214,25 @@ export default function MobileApp(props: MobileAppProps) {
         </div>
       </div>
 
+      <div class="mobile-floating-actions">
+        <button
+          type="button"
+          class="mobile-floating-search-button"
+          onClick={() => setSearchOpen(true)}
+          aria-label="打开搜索"
+          title="搜索"
+        >
+          <SearchIcon size={21} />
+        </button>
+        <TodoInput onAdd={props.handleAdd} />
+      </div>
+
       <Drawer.Root
         open={statsOpen()}
         onOpenChange={handleStatsOpenChange}
         swipeDirection="end"
+        lazyMount
+        unmountOnExit
       >
         <Drawer.Backdrop class="mobile-stats-scrim" />
         <Drawer.Positioner class="mobile-stats-drawer-positioner">
@@ -223,6 +244,36 @@ export default function MobileApp(props: MobileAppProps) {
               </Drawer.CloseTrigger>
             </header>
             <StatsPanel stats={props.stats} />
+          </Drawer.Content>
+        </Drawer.Positioner>
+      </Drawer.Root>
+
+      <Drawer.Root
+        open={searchOpen()}
+        onOpenChange={handleSearchOpenChange}
+        swipeDirection="bottom"
+        lazyMount
+      >
+        <Drawer.Backdrop class="mobile-stats-scrim" />
+        <Drawer.Positioner class="mobile-search-drawer-positioner">
+          <Drawer.Content class="mobile-search-drawer search-drawer">
+            <header class="mobile-stats-drawer-header">
+              <Drawer.Title>搜索</Drawer.Title>
+              <Drawer.CloseTrigger class="mobile-stats-close" title="关闭">
+                <XIcon size={18} />
+              </Drawer.CloseTrigger>
+            </header>
+            <SearchPanel
+              variant="mobile"
+              buildSearchResultGroups={props.buildSearchResultGroups}
+              onToggle={props.handleToggle}
+              onDelete={props.handleDelete}
+              onUpdate={props.handleUpdate}
+              onUpdatePlannedDate={props.handleUpdatePlannedDate}
+              onUpdateDueDate={props.handleUpdateDueDate}
+              onUpdatePriority={props.handleUpdatePriority}
+              onUpdateReminder={props.handleUpdateReminder}
+            />
           </Drawer.Content>
         </Drawer.Positioner>
       </Drawer.Root>

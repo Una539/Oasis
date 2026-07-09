@@ -14,16 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import { Dialog } from "@ark-ui/solid/dialog";
+import { SearchIcon, XIcon } from "lucide-solid";
 import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import {
   type CorePartitionKey,
   type FocusRouteRecommendation,
   type Partitions,
+  type SearchResultGroup,
   type TodoStats,
 } from "../hooks/useTodos";
 import TodoInput from "./TodoInput";
 import DesktopTodoItem from "./DesktopTodoItem";
 import StatsPanel from "./StatsPanel";
+import SearchPanel from "./SearchPanel";
 
 const PARTITION_KEYS: CorePartitionKey[] = ["today", "upcoming", "inbox"];
 
@@ -46,13 +50,14 @@ interface DesktopAppProps {
   partitions: Partitions;
   focusRecommendation: FocusRouteRecommendation | null;
   stats: TodoStats;
+  buildSearchResultGroups: (query: string) => SearchResultGroup[];
   handleAdd: (
     content: string,
     plannedDate: string | null,
     dueDate: string | null,
   ) => Promise<boolean>;
   handleDelete: (id: string) => Promise<void>;
-  handleToggle: (id: string, currentView: CorePartitionKey) => Promise<void>;
+  handleToggle: (id: string, currentView?: CorePartitionKey) => Promise<void>;
   handleUpdate: (id: string, content: string) => Promise<void>;
   handleUpdatePlannedDate: (
     id: string,
@@ -192,7 +197,19 @@ export default function DesktopApp(props: DesktopAppProps) {
         flex-shrink-0
       />
 
-      <div flex-1 min-w-0 px-5 pt-6 pb-5 flex flex-col gap-3 h-full box-border>
+      <div
+        class="desktop-content-area"
+        flex-1
+        min-w-0
+        px-5
+        pt-6
+        pb-5
+        flex
+        flex-col
+        gap-3
+        h-full
+        box-border
+      >
         <Show when={currentView() !== "stats"}>
           <TodoInput onAdd={props.handleAdd} />
         </Show>
@@ -234,6 +251,44 @@ export default function DesktopApp(props: DesktopAppProps) {
             </For>
           </Show>
         </div>
+
+        <Dialog.Root lazyMount unmountOnExit>
+          <Dialog.Trigger
+            class="desktop-search-fab"
+            aria-label="打开全局搜索"
+            title="搜索"
+          >
+            <SearchIcon size={21} />
+          </Dialog.Trigger>
+          <Dialog.Backdrop class="desktop-search-backdrop" />
+          <Dialog.Positioner class="desktop-search-positioner">
+            <Dialog.Content class="desktop-search-dialog">
+              <header class="desktop-search-dialog-header">
+                <Dialog.Title class="desktop-search-dialog-title">
+                  搜索
+                </Dialog.Title>
+                <Dialog.CloseTrigger
+                  class="desktop-search-close"
+                  aria-label="关闭搜索"
+                  title="关闭"
+                >
+                  <XIcon size={18} />
+                </Dialog.CloseTrigger>
+              </header>
+              <SearchPanel
+                variant="desktop"
+                buildSearchResultGroups={props.buildSearchResultGroups}
+                onToggle={props.handleToggle}
+                onDelete={props.handleDelete}
+                onUpdate={props.handleUpdate}
+                onUpdatePlannedDate={props.handleUpdatePlannedDate}
+                onUpdateDueDate={props.handleUpdateDueDate}
+                onUpdatePriority={props.handleUpdatePriority}
+                onUpdateReminder={props.handleUpdateReminder}
+              />
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Dialog.Root>
       </div>
     </main>
   );
