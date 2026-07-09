@@ -152,7 +152,7 @@ body {
   flex: 1;
   min-width: 0;
   flex-direction: column;
-  padding: 0.35rem 0.35rem 0.45rem 0;
+  padding: 0.35rem 0.6rem 0.45rem 0;
   gap: 0.2rem;
 }
 
@@ -168,24 +168,57 @@ body {
 }
 
 .mobile-todo-meta-row {
-  flex-wrap: wrap;
-  gap: 0.4rem;
+  flex-wrap: nowrap;
+  gap: 0.32rem;
   padding-left: 46px;
 }
 
 .mobile-todo-meta-row .todo-meta-controls {
   margin-inline: 0;
   max-width: none;
+  flex-shrink: 0;
 }
 
 .mobile-todo-meta-row .due-date-badge {
   margin-inline: 0;
+  min-width: 0;
 }
 
 .due-date-badge.mobile-editable {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.72rem;
+  padding: 0.22rem 0.48rem;
   cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
   user-select: none;
   margin-inline: 0;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.due-date-badge.mobile-editable.reminder-on {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--primary) 76%, var(--border));
+  background: color-mix(in srgb, var(--primary) 28%, var(--surface));
+}
+
+.due-date-badge.mobile-editable:active {
+  transform: translateY(1px);
+}
+
+.mobile-date-editor-row {
+  display: flex;
+  min-width: 0;
+  padding-left: 46px;
+}
+
+.mobile-date-editor-row .date-chip-editor {
+  width: 100%;
 }
 
 @media (hover: none) and (pointer: coarse) {

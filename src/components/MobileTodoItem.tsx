@@ -15,7 +15,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import { createEffect, createSignal, createMemo, onCleanup } from "solid-js";
-import { X } from "lucide-solid";
 import { type Todo } from "../hooks/useTodos";
 import { getTodayDateString } from "../utils/date";
 import { getPriorityColor } from "../utils/tags";
@@ -23,8 +22,10 @@ import DueDateChip from "./DueDateChip";
 import TodoMetaControls from "./TodoMetaControls";
 
 const DELETE_THRESHOLD = 120;
+const DATE_EDIT_LONG_PRESS_MS = 520;
 
 type SwipeState = "idle" | "dragging" | "snapping" | "slide-out" | "deleting";
+type DateKind = "planned" | "due";
 
 interface SwipeResult {
   offset: () => number;
@@ -131,6 +132,13 @@ export default function MobileTodoItem(props: MobileTodoItemProps) {
   const [draftContent, setDraftContent] = createSignal(props.todo.content);
   const [datePickerOpen, setDatePickerOpen] = createSignal(false);
   const [draftDate, setDraftDate] = createSignal("");
+  const [editingDateKind, setEditingDateKind] = createSignal<DateKind | null>(null);
+  let dateEditTimer: ReturnType<typeof setTimeout> | undefined;
+  let suppressNextDateToggle = false;
+
+  onCleanup(() => {
+    if (dateEditTimer) clearTimeout(dateEditTimer);
+  });
 
   createEffect(() => {
     setDraftContent(props.todo.content);
@@ -143,7 +151,7 @@ export default function MobileTodoItem(props: MobileTodoItemProps) {
   };
 
   const handleDateClear = async () => {
-    if (props.todo.due_date) {
+    if (editingDateKind() === "due" || (editingDateKind() === null && props.todo.due_date)) {
       await props.onUpdateDueDate(props.todo.id, null);
     } else {
       await props.onUpdatePlannedDate(props.todo.id, null);
@@ -154,27 +162,70 @@ export default function MobileTodoItem(props: MobileTodoItemProps) {
 
   const handleOpenChange = (open: boolean) => {
     setDatePickerOpen(open);
-    setDraftDate(
-      open ? props.todo.due_date || props.todo.planned_date || getTodayDateString() : "",
-    );
+    if (open) {
+      const dateKind = editingDateKind();
+      const currentDate =
+        dateKind === "due"
+          ? props.todo.due_date
+          : dateKind === "planned"
+            ? props.todo.planned_date
+            : props.todo.due_date || props.todo.planned_date;
+      setDraftDate(currentDate || getTodayDateString());
+    } else {
+      setDraftDate("");
+      setEditingDateKind(null);
+    }
   };
 
-  const openDateEditor = () => {
-    setDraftDate(props.todo.due_date || props.todo.planned_date || getTodayDateString());
+  const openDateEditor = (dateKind: DateKind) => {
+    const currentDate =
+      dateKind === "due" ? props.todo.due_date : props.todo.planned_date;
+    setEditingDateKind(dateKind);
+    setDraftDate(currentDate || getTodayDateString());
     setDatePickerOpen(true);
   };
 
   const handleDateChange = (value: string) => {
     setDraftDate(value);
-    if (props.todo.due_date) {
+    if (editingDateKind() === "due" || (editingDateKind() === null && props.todo.due_date)) {
       void props.onUpdateDueDate(props.todo.id, value || null);
     } else {
       void props.onUpdatePlannedDate(props.todo.id, value || null);
     }
   };
 
-  const activeDateValue = () =>
-    draftDate() || props.todo.due_date || props.todo.planned_date || "";
+  const activeDateValue = () => {
+    if (draftDate()) return draftDate();
+    const dateKind = editingDateKind();
+    if (dateKind === "due") return props.todo.due_date || "";
+    if (dateKind === "planned") return props.todo.planned_date || "";
+    return props.todo.due_date || props.todo.planned_date || "";
+  };
+
+  const clearDateEditTimer = () => {
+    if (dateEditTimer) {
+      clearTimeout(dateEditTimer);
+      dateEditTimer = undefined;
+    }
+  };
+
+  const startDateEditPress = (dateKind: DateKind) => {
+    clearDateEditTimer();
+    suppressNextDateToggle = false;
+    dateEditTimer = setTimeout(() => {
+      suppressNextDateToggle = true;
+      openDateEditor(dateKind);
+      dateEditTimer = undefined;
+    }, DATE_EDIT_LONG_PRESS_MS);
+  };
+
+  const toggleReminder = async () => {
+    if (suppressNextDateToggle) {
+      suppressNextDateToggle = false;
+      return;
+    }
+    await props.onUpdateReminder(props.todo.id, !props.todo.reminder_enabled);
+  };
 
   const dueDateClass = () => {
     if (!props.todo.due_date) return "due-date-badge";
@@ -182,6 +233,17 @@ export default function MobileTodoItem(props: MobileTodoItemProps) {
     if (props.todo.due_date === today) return "due-date-badge today";
     if (!props.todo.done && props.todo.due_date < today) return "due-date-badge overdue";
     return "due-date-badge";
+  };
+
+  const dateBadgeClass = (baseClass: string) =>
+    props.todo.reminder_enabled
+      ? `${baseClass} mobile-editable reminder-on`
+      : `${baseClass} mobile-editable`;
+
+  const dateBadgeTitle = (dateKind: DateKind) => {
+    const action = props.todo.reminder_enabled ? "关闭提醒" : "开启提醒";
+    const editTarget = dateKind === "due" ? "截止日期" : "想做日期";
+    return `${action}，长按修改${editTarget}`;
   };
 
   return (
@@ -231,31 +293,48 @@ export default function MobileTodoItem(props: MobileTodoItemProps) {
               todo={props.todo}
               onUpdatePriority={props.onUpdatePriority}
               onUpdateReminder={props.onUpdateReminder}
+              hideReminder
             />
             {props.todo.planned_date && (
-              <span
-                class="due-date-badge mobile-editable"
+              <button
+                type="button"
+                class={dateBadgeClass("due-date-badge")}
                 text="[12px]"
                 whitespace-nowrap
                 flex-shrink-0
-                onDblClick={openDateEditor}
-                title="双击修改想做日期"
+                aria-pressed={props.todo.reminder_enabled}
+                onClick={() => void toggleReminder()}
+                onPointerDown={() => startDateEditPress("planned")}
+                onPointerUp={clearDateEditTimer}
+                onPointerLeave={clearDateEditTimer}
+                onPointerCancel={clearDateEditTimer}
+                onContextMenu={(event) => event.preventDefault()}
+                title={dateBadgeTitle("planned")}
               >
                 想 {props.todo.planned_date}
-              </span>
+              </button>
             )}
             {props.todo.due_date && (
-              <span
-                class={`${dueDateClass()} mobile-editable`}
+              <button
+                type="button"
+                class={dateBadgeClass(dueDateClass())}
                 text="[12px]"
                 whitespace-nowrap
                 flex-shrink-0
-                onDblClick={openDateEditor}
-                title="双击修改截止日期"
+                aria-pressed={props.todo.reminder_enabled}
+                onClick={() => void toggleReminder()}
+                onPointerDown={() => startDateEditPress("due")}
+                onPointerUp={clearDateEditTimer}
+                onPointerLeave={clearDateEditTimer}
+                onPointerCancel={clearDateEditTimer}
+                onContextMenu={(event) => event.preventDefault()}
+                title={dateBadgeTitle("due")}
               >
                 截 {props.todo.due_date}
-              </span>
+              </button>
             )}
+          </div>
+          <div class="mobile-date-editor-row">
             <DueDateChip
               open={datePickerOpen()}
               value={activeDateValue()}
@@ -270,15 +349,6 @@ export default function MobileTodoItem(props: MobileTodoItemProps) {
             />
           </div>
         </div>
-        <button
-          class="todo-delete-button mobile"
-          type="button"
-          onClick={() => props.onDelete(props.todo.id)}
-          aria-label="删除这个待办"
-          title="删除"
-        >
-          <X size={18} />
-        </button>
       </div>
     </div>
   );

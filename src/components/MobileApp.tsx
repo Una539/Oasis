@@ -251,8 +251,8 @@ export default function MobileApp(props: MobileAppProps) {
       <Drawer.Root
         open={searchOpen()}
         onOpenChange={handleSearchOpenChange}
-        swipeDirection="bottom"
         lazyMount
+        unmountOnExit
       >
         <Drawer.Backdrop class="mobile-stats-scrim" />
         <Drawer.Positioner class="mobile-search-drawer-positioner">

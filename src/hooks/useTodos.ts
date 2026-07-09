@@ -307,7 +307,6 @@ function shouldSendStartupReminder(todo: Todo, today: string): boolean {
   return (
     !todo.done &&
     todo.reminder_enabled &&
-    todo.last_notified_on !== today &&
     ((todo.planned_date !== null && todo.planned_date <= today) ||
       (todo.due_date !== null && todo.due_date <= today))
   );
@@ -444,11 +443,6 @@ export function useTodos() {
     handleCommandResult(result);
   };
 
-  const handleUpdateReminder = async (id: string, reminderEnabled: boolean) => {
-    const result = await commands.updateTodoReminder(id, reminderEnabled);
-    handleCommandResult(result);
-  };
-
   const handleCreateTag = async (name: string, color: string) => {
     const result = await commands.createTag(name, color);
     return handleCommandResult(result);
@@ -477,13 +471,26 @@ export function useTodos() {
   };
 
   let notificationInFlight = false;
+  const notifiedThisLaunch = new Set<string>();
+
+  const handleUpdateReminder = async (id: string, reminderEnabled: boolean) => {
+    const result = await commands.updateTodoReminder(id, reminderEnabled);
+    if (handleCommandResult(result)) {
+      if (!reminderEnabled) {
+        notifiedThisLaunch.delete(id);
+      } else {
+        void runDueNotifications();
+      }
+    }
+  };
 
   const runDueNotifications = async () => {
     if (!loaded() || notificationInFlight) return;
 
     const today = getTodayDateString();
-    const pendingTodos = state.todos.filter((todo) =>
-      shouldSendStartupReminder(todo, today),
+    const pendingTodos = state.todos.filter(
+      (todo) =>
+        !notifiedThisLaunch.has(todo.id) && shouldSendStartupReminder(todo, today),
     );
     if (pendingTodos.length === 0) return;
 
@@ -498,6 +505,7 @@ export function useTodos() {
       if (!permissionGranted) return;
 
       for (const todo of pendingTodos) {
+        notifiedThisLaunch.add(todo.id);
         sendNotification({
           title: "Oasis 今日待办",
           body: todo.content,

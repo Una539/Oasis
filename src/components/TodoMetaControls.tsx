@@ -23,6 +23,7 @@ interface TodoMetaControlsProps {
   todo: Todo;
   onUpdatePriority: (id: string, priority: number) => Promise<void>;
   onUpdateReminder: (id: string, reminderEnabled: boolean) => Promise<void>;
+  hideReminder?: boolean;
 }
 
 const PRIORITIES = [1, 2, 3, 4, 5];
@@ -45,17 +46,19 @@ export default function TodoMetaControls(props: TodoMetaControlsProps) {
         </For>
       </div>
 
-      <button
-        type="button"
-        class={props.todo.reminder_enabled ? "reminder-toggle active" : "reminder-toggle"}
-        onClick={() =>
-          props.onUpdateReminder(props.todo.id, !props.todo.reminder_enabled)
-        }
-        title={props.todo.reminder_enabled ? "关闭提醒" : "开启今日提醒"}
-        aria-label={props.todo.reminder_enabled ? "关闭提醒" : "开启今日提醒"}
-      >
-        {props.todo.reminder_enabled ? <Bell size={14} /> : <BellOff size={14} />}
-      </button>
+      {!props.hideReminder && (
+        <button
+          type="button"
+          class={props.todo.reminder_enabled ? "reminder-toggle active" : "reminder-toggle"}
+          onClick={() =>
+            props.onUpdateReminder(props.todo.id, !props.todo.reminder_enabled)
+          }
+          title={props.todo.reminder_enabled ? "关闭提醒" : "开启今日提醒"}
+          aria-label={props.todo.reminder_enabled ? "关闭提醒" : "开启今日提醒"}
+        >
+          {props.todo.reminder_enabled ? <Bell size={14} /> : <BellOff size={14} />}
+        </button>
+      )}
     </div>
   );
 }
