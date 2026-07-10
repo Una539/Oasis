@@ -26,6 +26,6 @@ export const TAG_COLOR_PALETTE = [
 ] as const;
 
 export function getPriorityColor(priority: number): string {
-  const colors = ["#9ca3af", "#79a085", "#c0a85a", "#d9784d", "#be4d45"];
+  const colors = ["#8fc5ff", "#a8dc9a", "#ffd66e", "#ffae7a", "#f58cab"];
   return colors[Math.min(Math.max(priority, 1), 5) - 1];
 }

@@ -23,6 +23,7 @@ import TodoMetaControls from "./TodoMetaControls";
 
 const DELETE_THRESHOLD = 120;
 const DATE_EDIT_LONG_PRESS_MS = 520;
+const TODO_EDIT_LONG_PRESS_MS = 520;
 
 type SwipeState = "idle" | "dragging" | "snapping" | "slide-out" | "deleting";
 type DateKind = "planned" | "due";
@@ -130,24 +131,60 @@ export default function MobileTodoItem(props: MobileTodoItemProps) {
   const { offset, trackClass, onTouchStart, onTouchMove, onTouchEnd } =
     createSwipeToDelete(() => props.onDelete(props.todo.id));
   const [draftContent, setDraftContent] = createSignal(props.todo.content);
+  const [editingContent, setEditingContent] = createSignal(false);
   const [datePickerOpen, setDatePickerOpen] = createSignal(false);
   const [draftDate, setDraftDate] = createSignal("");
   const [editingDateKind, setEditingDateKind] = createSignal<DateKind | null>(null);
   let dateEditTimer: ReturnType<typeof setTimeout> | undefined;
   let suppressNextDateToggle = false;
+  let editTimer: ReturnType<typeof setTimeout> | undefined;
+  let suppressNextToggle = false;
+  let contentInput: HTMLInputElement | undefined;
 
   onCleanup(() => {
     if (dateEditTimer) clearTimeout(dateEditTimer);
+    if (editTimer) clearTimeout(editTimer);
   });
 
   createEffect(() => {
     setDraftContent(props.todo.content);
   });
 
+  createEffect(() => {
+    if (editingContent()) {
+      queueMicrotask(() => contentInput?.focus());
+    }
+  });
+
   const commitContent = async () => {
     const content = draftContent().trim();
     if (!content || content === props.todo.content) return;
     await props.onUpdate(props.todo.id, content);
+  };
+
+  const clearEditTimer = () => {
+    if (editTimer) {
+      clearTimeout(editTimer);
+      editTimer = undefined;
+    }
+  };
+
+  const startEditPress = () => {
+    clearEditTimer();
+    suppressNextToggle = false;
+    editTimer = setTimeout(() => {
+      suppressNextToggle = true;
+      setEditingContent(true);
+      editTimer = undefined;
+    }, TODO_EDIT_LONG_PRESS_MS);
+  };
+
+  const toggleOrEdit = () => {
+    if (suppressNextToggle) {
+      suppressNextToggle = false;
+      return;
+    }
+    void props.onToggle(props.todo.id);
   };
 
   const handleDateClear = async () => {
@@ -275,18 +312,46 @@ export default function MobileTodoItem(props: MobileTodoItemProps) {
               checked={props.todo.done}
               onChange={() => props.onToggle(props.todo.id)}
             />
-            <input
-              type="text"
-              class={props.todo.done ? "todo-text-input done" : "todo-text-input"}
-              value={draftContent()}
-              onInput={(event) => setDraftContent(event.currentTarget.value)}
-              onBlur={() => void commitContent()}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.currentTarget.blur();
-                }
-              }}
-            />
+            {editingContent() ? (
+              <input
+                ref={contentInput}
+                type="text"
+                class={props.todo.done ? "todo-text-input done" : "todo-text-input"}
+                value={draftContent()}
+                onInput={(event) => setDraftContent(event.currentTarget.value)}
+                onBlur={() => {
+                  void commitContent();
+                  setEditingContent(false);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") event.currentTarget.blur();
+                  if (event.key === "Escape") {
+                    setDraftContent(props.todo.content);
+                    event.currentTarget.blur();
+                  }
+                }}
+              />
+            ) : (
+              <div
+                class={props.todo.done ? "todo-content-trigger done" : "todo-content-trigger"}
+                role="button"
+                tabindex="0"
+                onPointerDown={startEditPress}
+                onPointerUp={clearEditTimer}
+                onPointerLeave={clearEditTimer}
+                onPointerCancel={clearEditTimer}
+                onClick={toggleOrEdit}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    toggleOrEdit();
+                  }
+                }}
+                title="点击完成，长按修改"
+              >
+                {props.todo.content}
+              </div>
+            )}
           </div>
           <div class="mobile-todo-meta-row">
             <TodoMetaControls
@@ -295,44 +360,46 @@ export default function MobileTodoItem(props: MobileTodoItemProps) {
               onUpdateReminder={props.onUpdateReminder}
               hideReminder
             />
-            {props.todo.planned_date && (
-              <button
-                type="button"
-                class={dateBadgeClass("due-date-badge")}
-                text="[12px]"
-                whitespace-nowrap
-                flex-shrink-0
-                aria-pressed={props.todo.reminder_enabled}
-                onClick={() => void toggleReminder()}
-                onPointerDown={() => startDateEditPress("planned")}
-                onPointerUp={clearDateEditTimer}
-                onPointerLeave={clearDateEditTimer}
-                onPointerCancel={clearDateEditTimer}
-                onContextMenu={(event) => event.preventDefault()}
-                title={dateBadgeTitle("planned")}
-              >
-                想 {props.todo.planned_date}
-              </button>
-            )}
-            {props.todo.due_date && (
-              <button
-                type="button"
-                class={dateBadgeClass(dueDateClass())}
-                text="[12px]"
-                whitespace-nowrap
-                flex-shrink-0
-                aria-pressed={props.todo.reminder_enabled}
-                onClick={() => void toggleReminder()}
-                onPointerDown={() => startDateEditPress("due")}
-                onPointerUp={clearDateEditTimer}
-                onPointerLeave={clearDateEditTimer}
-                onPointerCancel={clearDateEditTimer}
-                onContextMenu={(event) => event.preventDefault()}
-                title={dateBadgeTitle("due")}
-              >
-                截 {props.todo.due_date}
-              </button>
-            )}
+            <div class="mobile-date-badges">
+              {props.todo.planned_date && (
+                <button
+                  type="button"
+                  class={dateBadgeClass("due-date-badge")}
+                  text="[12px]"
+                  whitespace-nowrap
+                  flex-shrink-0
+                  aria-pressed={props.todo.reminder_enabled}
+                  onClick={() => void toggleReminder()}
+                  onPointerDown={() => startDateEditPress("planned")}
+                  onPointerUp={clearDateEditTimer}
+                  onPointerLeave={clearDateEditTimer}
+                  onPointerCancel={clearDateEditTimer}
+                  onContextMenu={(event) => event.preventDefault()}
+                  title={dateBadgeTitle("planned")}
+                >
+                  想 {props.todo.planned_date}
+                </button>
+              )}
+              {props.todo.due_date && (
+                <button
+                  type="button"
+                  class={dateBadgeClass(dueDateClass())}
+                  text="[12px]"
+                  whitespace-nowrap
+                  flex-shrink-0
+                  aria-pressed={props.todo.reminder_enabled}
+                  onClick={() => void toggleReminder()}
+                  onPointerDown={() => startDateEditPress("due")}
+                  onPointerUp={clearDateEditTimer}
+                  onPointerLeave={clearDateEditTimer}
+                  onPointerCancel={clearDateEditTimer}
+                  onContextMenu={(event) => event.preventDefault()}
+                  title={dateBadgeTitle("due")}
+                >
+                  截 {props.todo.due_date}
+                </button>
+              )}
+            </div>
           </div>
           <div class="mobile-date-editor-row">
             <DueDateChip

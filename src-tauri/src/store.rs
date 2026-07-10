@@ -98,6 +98,60 @@ pub struct FocusRouteRecommendation {
     pub action_label: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct TodoPartitions {
+    pub today: Vec<Todo>,
+    pub upcoming: Vec<Todo>,
+    pub inbox: Vec<Todo>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct TrendDay {
+    pub date: String,
+    pub label: String,
+    pub count: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct RecentCompletedTodo {
+    pub id: String,
+    pub content: String,
+    pub completed_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct TodoStats {
+    pub week_completed_count: u32,
+    pub streak_days: u32,
+    pub trend: Vec<TrendDay>,
+    pub recent_completed: Vec<RecentCompletedTodo>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct AppViewState {
+    pub partitions: TodoPartitions,
+    pub stats: TodoStats,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct AppSnapshot {
+    pub state: AppState,
+    pub view: AppViewState,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct SearchResultGroup {
+    pub key: String,
+    pub label: String,
+    pub todos: Vec<Todo>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct ReminderCandidate {
+    pub id: String,
+    pub content: String,
+}
+
 #[derive(Debug)]
 pub struct TodoCache {
     pub state: Mutex<Option<AppState>>,
@@ -168,6 +222,285 @@ fn is_upcoming_focus_todo(todo: &Todo, today: &str) -> bool {
 
 fn is_inbox_focus_todo(todo: &Todo) -> bool {
     !todo.done && todo.planned_date.is_none() && todo.due_date.is_none()
+}
+
+fn todo_partition(todo: &Todo, today: &str) -> Option<&'static str> {
+    if todo.done {
+        return None;
+    }
+
+    if is_today_focus_todo(todo, today) {
+        return Some("today");
+    }
+
+    if is_upcoming_focus_todo(todo, today) {
+        return Some("upcoming");
+    }
+
+    Some("inbox")
+}
+
+fn build_partitions(state: &AppState, today: &str) -> TodoPartitions {
+    let mut partitions = TodoPartitions {
+        today: vec![],
+        upcoming: vec![],
+        inbox: vec![],
+    };
+
+    for todo in &state.todos {
+        match todo_partition(todo, today) {
+            Some("today") => partitions.today.push(todo.clone()),
+            Some("upcoming") => partitions.upcoming.push(todo.clone()),
+            Some("inbox") => partitions.inbox.push(todo.clone()),
+            _ => {}
+        }
+    }
+
+    partitions
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct DateParts {
+    year: i32,
+    month: u32,
+    day: u32,
+}
+
+fn parse_date_parts(value: &str) -> Option<DateParts> {
+    let date = value.get(0..10)?;
+    let mut parts = date.split('-');
+    let year = parts.next()?.parse().ok()?;
+    let month = parts.next()?.parse().ok()?;
+    let day = parts.next()?.parse().ok()?;
+    if parts.next().is_some() || !(1..=12).contains(&month) || !(1..=31).contains(&day) {
+        return None;
+    }
+    Some(DateParts { year, month, day })
+}
+
+fn days_from_civil(date: DateParts) -> i64 {
+    let year = date.year - if date.month <= 2 { 1 } else { 0 };
+    let era = year.div_euclid(400);
+    let yoe = year - era * 400;
+    let month = date.month as i32;
+    let doy = (153 * (month + if month > 2 { -3 } else { 9 }) + 2) / 5 + date.day as i32 - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    (era * 146_097 + doe - 719_468) as i64
+}
+
+fn civil_from_days(days: i64) -> DateParts {
+    let days = days + 719_468;
+    let era = days.div_euclid(146_097);
+    let doe = days - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let year = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = mp + if mp < 10 { 3 } else { -9 };
+    DateParts {
+        year: (year + if month <= 2 { 1 } else { 0 }) as i32,
+        month: month as u32,
+        day: day as u32,
+    }
+}
+
+fn format_date(date: DateParts) -> String {
+    format!("{:04}-{:02}-{:02}", date.year, date.month, date.day)
+}
+
+fn date_label(date: DateParts) -> String {
+    format!("{}/{}", date.month, date.day)
+}
+
+fn build_stats(state: &AppState, today: &str) -> TodoStats {
+    let Some(today_parts) = parse_date_parts(today) else {
+        return TodoStats {
+            week_completed_count: 0,
+            streak_days: 0,
+            trend: vec![],
+            recent_completed: vec![],
+        };
+    };
+    let today_days = days_from_civil(today_parts);
+    let week_start_days = today_days - (today_days + 3).rem_euclid(7);
+
+    let completed_dates: Vec<i64> = state
+        .todos
+        .iter()
+        .filter(|todo| todo.done)
+        .filter_map(|todo| todo.completed_at.as_deref())
+        .filter_map(parse_date_parts)
+        .map(days_from_civil)
+        .collect();
+
+    let week_completed_count = completed_dates
+        .iter()
+        .filter(|date| **date >= week_start_days && **date <= today_days)
+        .count() as u32;
+
+    let completed_date_set: std::collections::HashSet<i64> =
+        completed_dates.iter().copied().collect();
+    let mut streak_days = 0_u32;
+    loop {
+        let date = today_days - i64::from(streak_days);
+        if !completed_date_set.contains(&date) {
+            break;
+        }
+        streak_days += 1;
+    }
+
+    let trend = (-6..=0)
+        .map(|offset| {
+            let days = today_days + offset;
+            let date = civil_from_days(days);
+            TrendDay {
+                date: format_date(date),
+                label: date_label(date),
+                count: completed_dates
+                    .iter()
+                    .filter(|completed| **completed == days)
+                    .count() as u32,
+            }
+        })
+        .collect();
+
+    let mut recent_completed: Vec<&Todo> = state
+        .todos
+        .iter()
+        .filter(|todo| todo.done && todo.completed_at.is_some())
+        .collect();
+    recent_completed.sort_by(|left, right| right.completed_at.cmp(&left.completed_at));
+
+    TodoStats {
+        week_completed_count,
+        streak_days,
+        trend,
+        recent_completed: recent_completed
+            .into_iter()
+            .take(5)
+            .map(|todo| RecentCompletedTodo {
+                id: todo.id.clone(),
+                content: todo.content.clone(),
+                completed_at: todo.completed_at.clone().unwrap_or_default(),
+            })
+            .collect(),
+    }
+}
+
+fn build_app_view_state(state: &AppState, today: &str) -> AppViewState {
+    AppViewState {
+        partitions: build_partitions(state, today),
+        stats: build_stats(state, today),
+    }
+}
+
+fn build_app_snapshot(state: &AppState, today: &str) -> AppSnapshot {
+    AppSnapshot {
+        state: state.clone(),
+        view: build_app_view_state(state, today),
+    }
+}
+
+fn todo_search_text(todo: &Todo) -> String {
+    [
+        todo.content.clone(),
+        todo.planned_date
+            .as_ref()
+            .map(|date| format!("想做 {date}"))
+            .unwrap_or_default(),
+        todo.due_date
+            .as_ref()
+            .map(|date| format!("截止 {date}"))
+            .unwrap_or_default(),
+        todo.completed_at
+            .as_ref()
+            .map(|date| format!("完成 {date}"))
+            .unwrap_or_default(),
+        format!("p{}", todo.priority),
+        format!("!{}", todo.priority),
+        format!("优先级 {}", todo.priority),
+    ]
+    .into_iter()
+    .filter(|part| !part.is_empty())
+    .collect::<Vec<_>>()
+    .join(" ")
+    .to_lowercase()
+}
+
+fn matches_search_query(todo: &Todo, terms: &[String]) -> bool {
+    let haystack = todo_search_text(todo);
+    terms.iter().all(|term| haystack.contains(term))
+}
+
+fn build_search_result_groups(
+    state: &AppState,
+    query: &str,
+    today: &str,
+) -> Vec<SearchResultGroup> {
+    let terms: Vec<String> = query
+        .trim()
+        .to_lowercase()
+        .split_whitespace()
+        .map(str::to_string)
+        .collect();
+    if terms.is_empty() {
+        return vec![];
+    }
+
+    let mut today_results = Vec::new();
+    let mut upcoming_results = Vec::new();
+    let mut inbox_results = Vec::new();
+    let mut completed_results = Vec::new();
+
+    for todo in &state.todos {
+        if !matches_search_query(todo, &terms) {
+            continue;
+        }
+
+        if todo.done {
+            completed_results.push(todo.clone());
+            continue;
+        }
+
+        match todo_partition(todo, today) {
+            Some("today") => today_results.push(todo.clone()),
+            Some("upcoming") => upcoming_results.push(todo.clone()),
+            Some("inbox") => inbox_results.push(todo.clone()),
+            _ => {}
+        }
+    }
+
+    [
+        ("today", "今日", today_results),
+        ("upcoming", "以后", upcoming_results),
+        ("inbox", "灵感", inbox_results),
+        ("completed", "已完成", completed_results),
+    ]
+    .into_iter()
+    .filter(|(_, _, todos)| !todos.is_empty())
+    .map(|(key, label, todos)| SearchResultGroup {
+        key: key.to_string(),
+        label: label.to_string(),
+        todos,
+    })
+    .collect()
+}
+
+fn build_due_reminder_candidates(state: &AppState, today: &str) -> Vec<ReminderCandidate> {
+    state
+        .todos
+        .iter()
+        .filter(|todo| {
+            todo.reminder_enabled
+                && is_today_focus_todo(todo, today)
+                && todo.last_notified_on.as_deref() != Some(today)
+        })
+        .map(|todo| ReminderCandidate {
+            id: todo.id.clone(),
+            content: todo.content.clone(),
+        })
+        .collect()
 }
 
 fn build_focus_route_recommendation(
@@ -299,6 +632,16 @@ fn state_from_cache<'a>(
     cache.state.lock().map_err(|e| e.to_string())
 }
 
+fn ensure_state_loaded<'a>(
+    app: &AppHandle,
+    state: &'a mut Option<AppState>,
+) -> Result<&'a AppState, String> {
+    if state.is_none() {
+        *state = Some(load_from_storage(app)?);
+    }
+    state.as_ref().ok_or_else(|| "无法加载应用状态".to_string())
+}
+
 fn normalize_tag_ids(state: &AppState, tag_ids: Vec<String>) -> Vec<String> {
     let known_tag_ids: std::collections::HashSet<&str> =
         state.tags.iter().map(|tag| tag.id.as_str()).collect();
@@ -342,6 +685,43 @@ pub async fn load_app_state(
 
 #[tauri::command]
 #[specta::specta]
+pub async fn load_app_snapshot(
+    app: AppHandle,
+    cache: State<'_, TodoCache>,
+    today: String,
+) -> Result<AppSnapshot, String> {
+    let mut state_guard = state_from_cache(&cache)?;
+    let state = ensure_state_loaded(&app, &mut state_guard)?;
+    Ok(build_app_snapshot(state, &today))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn search_todos(
+    app: AppHandle,
+    cache: State<'_, TodoCache>,
+    query: String,
+    today: String,
+) -> Result<Vec<SearchResultGroup>, String> {
+    let mut state_guard = state_from_cache(&cache)?;
+    let state = ensure_state_loaded(&app, &mut state_guard)?;
+    Ok(build_search_result_groups(state, &query, &today))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_due_reminders(
+    app: AppHandle,
+    cache: State<'_, TodoCache>,
+    today: String,
+) -> Result<Vec<ReminderCandidate>, String> {
+    let mut state_guard = state_from_cache(&cache)?;
+    let state = ensure_state_loaded(&app, &mut state_guard)?;
+    Ok(build_due_reminder_candidates(state, &today))
+}
+
+#[tauri::command]
+#[specta::specta]
 pub async fn add_todo(
     app: AppHandle,
     cache: State<'_, TodoCache>,
@@ -349,7 +729,7 @@ pub async fn add_todo(
     planned_date: Option<String>,
     due_date: Option<String>,
     today: String,
-) -> Result<AppState, String> {
+) -> Result<AppSnapshot, String> {
     let id = generate_id("todo");
     let parsed = parse_quick_add(&content, &today, planned_date, due_date, DEFAULT_PRIORITY)?;
 
@@ -379,7 +759,7 @@ pub async fn add_todo(
     });
 
     save_current_state(&app, state)?;
-    Ok(state.clone())
+    Ok(build_app_snapshot(state, &today))
 }
 
 #[tauri::command]
@@ -408,7 +788,8 @@ pub async fn delete_todo(
     app: AppHandle,
     cache: State<'_, TodoCache>,
     id: String,
-) -> Result<AppState, String> {
+    today: String,
+) -> Result<AppSnapshot, String> {
     let mut state_guard = state_from_cache(&cache)?;
 
     let state = state_guard.get_or_insert_with(|| AppState {
@@ -419,7 +800,7 @@ pub async fn delete_todo(
 
     state.todos.retain(|t| t.id != id);
     save_current_state(&app, state)?;
-    Ok(state.clone())
+    Ok(build_app_snapshot(state, &today))
 }
 
 #[tauri::command]
@@ -429,7 +810,8 @@ pub async fn toggle_todo(
     cache: State<'_, TodoCache>,
     id: String,
     completed_at: Option<String>,
-) -> Result<AppState, String> {
+    today: String,
+) -> Result<AppSnapshot, String> {
     let mut state_guard = state_from_cache(&cache)?;
 
     let state = state_guard.get_or_insert_with(|| AppState {
@@ -443,7 +825,7 @@ pub async fn toggle_todo(
     }
 
     save_current_state(&app, state)?;
-    Ok(state.clone())
+    Ok(build_app_snapshot(state, &today))
 }
 
 #[tauri::command]
@@ -453,7 +835,8 @@ pub async fn update_todo_content(
     cache: State<'_, TodoCache>,
     id: String,
     content: String,
-) -> Result<AppState, String> {
+    today: String,
+) -> Result<AppSnapshot, String> {
     let mut state_guard = state_from_cache(&cache)?;
 
     let state = state_guard.get_or_insert_with(|| AppState {
@@ -476,7 +859,7 @@ pub async fn update_todo_content(
     }
 
     save_current_state(&app, state)?;
-    Ok(state.clone())
+    Ok(build_app_snapshot(state, &today))
 }
 
 #[tauri::command]
@@ -486,7 +869,8 @@ pub async fn update_todo_planned_date(
     cache: State<'_, TodoCache>,
     id: String,
     planned_date: Option<String>,
-) -> Result<AppState, String> {
+    today: String,
+) -> Result<AppSnapshot, String> {
     let mut state_guard = state_from_cache(&cache)?;
 
     let state = state_guard.get_or_insert_with(|| AppState {
@@ -504,7 +888,7 @@ pub async fn update_todo_planned_date(
     }
 
     save_current_state(&app, state)?;
-    Ok(state.clone())
+    Ok(build_app_snapshot(state, &today))
 }
 
 #[tauri::command]
@@ -514,7 +898,8 @@ pub async fn update_todo_due_date(
     cache: State<'_, TodoCache>,
     id: String,
     due_date: Option<String>,
-) -> Result<AppState, String> {
+    today: String,
+) -> Result<AppSnapshot, String> {
     let mut state_guard = state_from_cache(&cache)?;
 
     let state = state_guard.get_or_insert_with(|| AppState {
@@ -532,7 +917,7 @@ pub async fn update_todo_due_date(
     }
 
     save_current_state(&app, state)?;
-    Ok(state.clone())
+    Ok(build_app_snapshot(state, &today))
 }
 
 #[tauri::command]
@@ -542,7 +927,8 @@ pub async fn update_todo_priority(
     cache: State<'_, TodoCache>,
     id: String,
     priority: u8,
-) -> Result<AppState, String> {
+    today: String,
+) -> Result<AppSnapshot, String> {
     let mut state_guard = state_from_cache(&cache)?;
     let state = state_guard.get_or_insert_with(|| AppState {
         schema_version: SCHEMA_VERSION,
@@ -555,7 +941,7 @@ pub async fn update_todo_priority(
     }
 
     save_current_state(&app, state)?;
-    Ok(state.clone())
+    Ok(build_app_snapshot(state, &today))
 }
 
 #[tauri::command]
@@ -565,7 +951,8 @@ pub async fn update_todo_tags(
     cache: State<'_, TodoCache>,
     id: String,
     tag_ids: Vec<String>,
-) -> Result<AppState, String> {
+    today: String,
+) -> Result<AppSnapshot, String> {
     let mut state_guard = state_from_cache(&cache)?;
     let state = state_guard.get_or_insert_with(|| AppState {
         schema_version: SCHEMA_VERSION,
@@ -583,7 +970,7 @@ pub async fn update_todo_tags(
     }
 
     save_current_state(&app, state)?;
-    Ok(state.clone())
+    Ok(build_app_snapshot(state, &today))
 }
 
 #[tauri::command]
@@ -593,7 +980,8 @@ pub async fn update_todo_reminder(
     cache: State<'_, TodoCache>,
     id: String,
     reminder_enabled: bool,
-) -> Result<AppState, String> {
+    today: String,
+) -> Result<AppSnapshot, String> {
     let mut state_guard = state_from_cache(&cache)?;
     let state = state_guard.get_or_insert_with(|| AppState {
         schema_version: SCHEMA_VERSION,
@@ -609,7 +997,7 @@ pub async fn update_todo_reminder(
     }
 
     save_current_state(&app, state)?;
-    Ok(state.clone())
+    Ok(build_app_snapshot(state, &today))
 }
 
 #[tauri::command]
@@ -619,7 +1007,7 @@ pub async fn mark_todo_notified(
     cache: State<'_, TodoCache>,
     id: String,
     notified_on: String,
-) -> Result<AppState, String> {
+) -> Result<AppSnapshot, String> {
     let mut state_guard = state_from_cache(&cache)?;
     let state = state_guard.get_or_insert_with(|| AppState {
         schema_version: SCHEMA_VERSION,
@@ -628,11 +1016,11 @@ pub async fn mark_todo_notified(
     });
 
     if let Some(todo) = state.todos.iter_mut().find(|t| t.id == id) {
-        todo.last_notified_on = Some(notified_on);
+        todo.last_notified_on = Some(notified_on.clone());
     }
 
     save_current_state(&app, state)?;
-    Ok(state.clone())
+    Ok(build_app_snapshot(state, &notified_on))
 }
 
 #[tauri::command]
@@ -740,7 +1128,8 @@ pub async fn create_tag(
     cache: State<'_, TodoCache>,
     name: String,
     color: String,
-) -> Result<AppState, String> {
+    today: String,
+) -> Result<AppSnapshot, String> {
     let trimmed = name.trim();
     if trimmed.is_empty() {
         return Err("标签名称不能为空".to_string());
@@ -760,7 +1149,7 @@ pub async fn create_tag(
     });
 
     save_current_state(&app, state)?;
-    Ok(state.clone())
+    Ok(build_app_snapshot(state, &today))
 }
 
 #[tauri::command]
@@ -771,7 +1160,8 @@ pub async fn update_tag(
     id: String,
     name: String,
     color: String,
-) -> Result<AppState, String> {
+    today: String,
+) -> Result<AppSnapshot, String> {
     let trimmed = name.trim();
     if trimmed.is_empty() {
         return Err("标签名称不能为空".to_string());
@@ -790,7 +1180,7 @@ pub async fn update_tag(
     }
 
     save_current_state(&app, state)?;
-    Ok(state.clone())
+    Ok(build_app_snapshot(state, &today))
 }
 
 #[tauri::command]
@@ -799,7 +1189,8 @@ pub async fn delete_tag(
     app: AppHandle,
     cache: State<'_, TodoCache>,
     id: String,
-) -> Result<AppState, String> {
+    today: String,
+) -> Result<AppSnapshot, String> {
     let mut state_guard = state_from_cache(&cache)?;
     let state = state_guard.get_or_insert_with(|| AppState {
         schema_version: SCHEMA_VERSION,
@@ -813,14 +1204,15 @@ pub async fn delete_tag(
     }
 
     save_current_state(&app, state)?;
-    Ok(state.clone())
+    Ok(build_app_snapshot(state, &today))
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        build_focus_route_recommendation, load_from_disk, normalize_state, parse_content_and_tags,
-        save_to_disk, AppState, Tag, Todo, SCHEMA_VERSION,
+        build_due_reminder_candidates, build_focus_route_recommendation, build_partitions,
+        build_search_result_groups, build_stats, load_from_disk, normalize_state,
+        parse_content_and_tags, save_to_disk, AppState, Tag, Todo, SCHEMA_VERSION,
     };
 
     fn legacy_todo() -> Todo {
@@ -1063,5 +1455,163 @@ mod tests {
         assert_eq!(recommendation.target_view, "today");
         assert_eq!(recommendation.action_label, "回今日");
         assert!(build_focus_route_recommendation(&state, "today", "2026-07-04").is_none());
+    }
+
+    #[test]
+    fn partitions_open_todos_by_planned_or_due_date() {
+        let state = AppState {
+            schema_version: SCHEMA_VERSION,
+            todos: vec![
+                Todo {
+                    id: "todo-today".to_string(),
+                    content: "today".to_string(),
+                    done: false,
+                    planned_date: Some("2026-07-04".to_string()),
+                    due_date: None,
+                    priority: 3,
+                    tag_ids: vec![],
+                    reminder_enabled: false,
+                    completed_at: None,
+                    last_notified_on: None,
+                },
+                Todo {
+                    id: "todo-upcoming".to_string(),
+                    content: "upcoming".to_string(),
+                    done: false,
+                    planned_date: None,
+                    due_date: Some("2026-07-06".to_string()),
+                    priority: 3,
+                    tag_ids: vec![],
+                    reminder_enabled: false,
+                    completed_at: None,
+                    last_notified_on: None,
+                },
+                Todo {
+                    id: "todo-inbox".to_string(),
+                    content: "inbox".to_string(),
+                    done: false,
+                    planned_date: None,
+                    due_date: None,
+                    priority: 3,
+                    tag_ids: vec![],
+                    reminder_enabled: false,
+                    completed_at: None,
+                    last_notified_on: None,
+                },
+            ],
+            tags: vec![],
+        };
+
+        let partitions = build_partitions(&state, "2026-07-04");
+
+        assert_eq!(partitions.today[0].id, "todo-today");
+        assert_eq!(partitions.upcoming[0].id, "todo-upcoming");
+        assert_eq!(partitions.inbox[0].id, "todo-inbox");
+    }
+
+    #[test]
+    fn builds_completion_stats_from_completed_dates() {
+        let state = AppState {
+            schema_version: SCHEMA_VERSION,
+            todos: vec![
+                Todo {
+                    id: "todo-1".to_string(),
+                    content: "first".to_string(),
+                    done: true,
+                    planned_date: None,
+                    due_date: None,
+                    priority: 3,
+                    tag_ids: vec![],
+                    reminder_enabled: false,
+                    completed_at: Some("2026-07-10".to_string()),
+                    last_notified_on: None,
+                },
+                Todo {
+                    id: "todo-2".to_string(),
+                    content: "second".to_string(),
+                    done: true,
+                    planned_date: None,
+                    due_date: None,
+                    priority: 3,
+                    tag_ids: vec![],
+                    reminder_enabled: false,
+                    completed_at: Some("2026-07-09".to_string()),
+                    last_notified_on: None,
+                },
+            ],
+            tags: vec![],
+        };
+
+        let stats = build_stats(&state, "2026-07-10");
+
+        assert_eq!(stats.week_completed_count, 2);
+        assert_eq!(stats.streak_days, 2);
+        assert_eq!(stats.trend.len(), 7);
+        assert_eq!(stats.recent_completed[0].id, "todo-1");
+    }
+
+    #[test]
+    fn searches_by_content_date_and_priority() {
+        let state = AppState {
+            schema_version: SCHEMA_VERSION,
+            todos: vec![Todo {
+                id: "todo-1".to_string(),
+                content: "写发布说明".to_string(),
+                done: false,
+                planned_date: Some("2026-07-10".to_string()),
+                due_date: None,
+                priority: 1,
+                tag_ids: vec![],
+                reminder_enabled: false,
+                completed_at: None,
+                last_notified_on: None,
+            }],
+            tags: vec![],
+        };
+
+        let groups = build_search_result_groups(&state, "发布 p1", "2026-07-10");
+
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].key, "today");
+        assert_eq!(groups[0].todos[0].id, "todo-1");
+    }
+
+    #[test]
+    fn due_reminders_skip_todos_notified_today() {
+        let state = AppState {
+            schema_version: SCHEMA_VERSION,
+            todos: vec![
+                Todo {
+                    id: "todo-new".to_string(),
+                    content: "new".to_string(),
+                    done: false,
+                    planned_date: Some("2026-07-10".to_string()),
+                    due_date: None,
+                    priority: 3,
+                    tag_ids: vec![],
+                    reminder_enabled: true,
+                    completed_at: None,
+                    last_notified_on: None,
+                },
+                Todo {
+                    id: "todo-old".to_string(),
+                    content: "old".to_string(),
+                    done: false,
+                    planned_date: Some("2026-07-10".to_string()),
+                    due_date: None,
+                    priority: 3,
+                    tag_ids: vec![],
+                    reminder_enabled: true,
+                    completed_at: None,
+                    last_notified_on: Some("2026-07-10".to_string()),
+                },
+            ],
+            tags: vec![],
+        };
+
+        let reminders = build_due_reminder_candidates(&state, "2026-07-10");
+
+        assert_eq!(reminders.len(), 1);
+        assert_eq!(reminders[0].id, "todo-new");
     }
 }

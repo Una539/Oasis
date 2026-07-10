@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { createMemo, createSignal, For, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { SearchIcon } from "lucide-solid";
 import {
   type SearchResultGroup,
@@ -25,7 +25,7 @@ import MobileTodoItem from "./MobileTodoItem";
 
 interface SearchPanelProps {
   variant: "desktop" | "mobile";
-  buildSearchResultGroups: (query: string) => SearchResultGroup[];
+  searchTodos: (query: string) => Promise<SearchResultGroup[]>;
   onToggle: (id: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onUpdate: (id: string, content: string) => Promise<void>;
@@ -37,13 +37,35 @@ interface SearchPanelProps {
 
 export default function SearchPanel(props: SearchPanelProps) {
   const [query, setQuery] = createSignal("");
+  const [resultGroups, setResultGroups] = createSignal<SearchResultGroup[]>([]);
   const normalizedQuery = createMemo(() => query().trim());
-  const resultGroups = createMemo(() =>
-    props.buildSearchResultGroups(normalizedQuery()),
-  );
   const resultCount = createMemo(() =>
     resultGroups().reduce((count, group) => count + group.todos.length, 0),
   );
+  let searchRequest = 0;
+
+  const refreshResults = async () => {
+    const currentQuery = normalizedQuery();
+    const request = ++searchRequest;
+    if (!currentQuery) {
+      setResultGroups([]);
+      return;
+    }
+
+    const groups = await props.searchTodos(currentQuery);
+    if (request === searchRequest) {
+      setResultGroups(groups);
+    }
+  };
+
+  createEffect(() => {
+    void refreshResults();
+  });
+
+  const refreshAfter = async (action: () => Promise<void>) => {
+    await action();
+    await refreshResults();
+  };
 
   const renderTodo = (todo: Todo) => (
     <Show
@@ -51,25 +73,41 @@ export default function SearchPanel(props: SearchPanelProps) {
       fallback={
         <DesktopTodoItem
           todo={todo}
-          onToggle={props.onToggle}
-          onDelete={props.onDelete}
-          onUpdate={props.onUpdate}
-          onUpdatePlannedDate={props.onUpdatePlannedDate}
-          onUpdateDueDate={props.onUpdateDueDate}
-          onUpdatePriority={props.onUpdatePriority}
-          onUpdateReminder={props.onUpdateReminder}
+          onToggle={(id) => refreshAfter(() => props.onToggle(id))}
+          onDelete={(id) => refreshAfter(() => props.onDelete(id))}
+          onUpdate={(id, content) => refreshAfter(() => props.onUpdate(id, content))}
+          onUpdatePlannedDate={(id, plannedDate) =>
+            refreshAfter(() => props.onUpdatePlannedDate(id, plannedDate))
+          }
+          onUpdateDueDate={(id, dueDate) =>
+            refreshAfter(() => props.onUpdateDueDate(id, dueDate))
+          }
+          onUpdatePriority={(id, priority) =>
+            refreshAfter(() => props.onUpdatePriority(id, priority))
+          }
+          onUpdateReminder={(id, reminderEnabled) =>
+            refreshAfter(() => props.onUpdateReminder(id, reminderEnabled))
+          }
         />
       }
     >
       <MobileTodoItem
         todo={todo}
-        onToggle={props.onToggle}
-        onDelete={props.onDelete}
-        onUpdate={props.onUpdate}
-        onUpdatePlannedDate={props.onUpdatePlannedDate}
-        onUpdateDueDate={props.onUpdateDueDate}
-        onUpdatePriority={props.onUpdatePriority}
-        onUpdateReminder={props.onUpdateReminder}
+        onToggle={(id) => refreshAfter(() => props.onToggle(id))}
+        onDelete={(id) => refreshAfter(() => props.onDelete(id))}
+        onUpdate={(id, content) => refreshAfter(() => props.onUpdate(id, content))}
+        onUpdatePlannedDate={(id, plannedDate) =>
+          refreshAfter(() => props.onUpdatePlannedDate(id, plannedDate))
+        }
+        onUpdateDueDate={(id, dueDate) =>
+          refreshAfter(() => props.onUpdateDueDate(id, dueDate))
+        }
+        onUpdatePriority={(id, priority) =>
+          refreshAfter(() => props.onUpdatePriority(id, priority))
+        }
+        onUpdateReminder={(id, reminderEnabled) =>
+          refreshAfter(() => props.onUpdateReminder(id, reminderEnabled))
+        }
       />
     </Show>
   );

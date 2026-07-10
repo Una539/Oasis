@@ -1,0 +1,18 @@
+/*
+ * Oasis - A simple Todo List app built with Tauri, SolidJS and Rust.
+ * Copyright (C) 2026 Uno
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+
+android {
+    buildTypes {
+        debug {
+            applicationIdSuffix ".dev"
+            versionNameSuffix "-dev"
+        }
+    }
+}

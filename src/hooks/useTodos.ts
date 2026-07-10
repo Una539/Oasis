@@ -23,10 +23,16 @@ import { createEffect, createMemo, createSignal, onCleanup, onMount } from "soli
 import { createStore } from "solid-js/store";
 import {
   commands,
+  type AppSnapshot as GeneratedAppSnapshot,
   type AppState as GeneratedAppState,
+  type AppViewState as GeneratedAppViewState,
   type FocusRouteRecommendation as GeneratedFocusRouteRecommendation,
+  type ReminderCandidate,
+  type SearchResultGroup as GeneratedSearchResultGroup,
   type Tag,
   type Todo as GeneratedTodo,
+  type TodoPartitions as GeneratedTodoPartitions,
+  type TodoStats as GeneratedTodoStats,
 } from "../bindings";
 import { getTodayDateString } from "../utils/date";
 
@@ -105,16 +111,33 @@ const EMPTY_STATE: AppState = {
   tags: [],
 };
 
-const CORE_PARTITION_KEYS: CorePartitionKey[] = ["today", "upcoming", "inbox"];
-const SEARCH_GROUP_LABELS: Record<SearchPartitionKey, string> = {
-  today: "今日",
-  upcoming: "以后",
-  inbox: "灵感",
-  completed: "已完成",
+const EMPTY_PARTITIONS: Partitions = {
+  today: [],
+  upcoming: [],
+  inbox: [],
 };
+
+const EMPTY_STATS: TodoStats = {
+  weekCompletedCount: 0,
+  streakDays: 0,
+  trend: [],
+  recentCompleted: [],
+};
+
+const CORE_PARTITION_KEYS: CorePartitionKey[] = ["today", "upcoming", "inbox"];
+const SEARCH_PARTITION_KEYS: SearchPartitionKey[] = [
+  "today",
+  "upcoming",
+  "inbox",
+  "completed",
+];
 
 function isCorePartitionKey(view: ViewKey): view is CorePartitionKey {
   return CORE_PARTITION_KEYS.includes(view as CorePartitionKey);
+}
+
+function isSearchPartitionKey(view: string): view is SearchPartitionKey {
+  return SEARCH_PARTITION_KEYS.includes(view as SearchPartitionKey);
 }
 
 function normalizeTodo(todo: GeneratedTodo): Todo {
@@ -137,187 +160,59 @@ function normalizeState(state: GeneratedAppState): AppState {
   };
 }
 
-function toDateString(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-function addDays(date: Date, days: number): Date {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next;
-}
-
-function startOfWeek(date: Date): Date {
-  const start = new Date(date);
-  const day = start.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  start.setDate(start.getDate() + diff);
-  start.setHours(0, 0, 0, 0);
-  return start;
-}
-
-function partitionTodos(todos: Todo[]): Partitions {
-  const result: Partitions = {
-    today: [],
-    upcoming: [],
-    inbox: [],
+function normalizePartitions(partitions: GeneratedTodoPartitions): Partitions {
+  return {
+    today: (partitions.today ?? []).map(normalizeTodo),
+    upcoming: (partitions.upcoming ?? []).map(normalizeTodo),
+    inbox: (partitions.inbox ?? []).map(normalizeTodo),
   };
-
-  for (const todo of todos) {
-    if (todo.done === true) {
-      continue;
-    }
-
-    result[getTodoPartition(todo)].push(todo);
-  }
-
-  return result;
 }
 
-function getTodoPartition(todo: Todo): CorePartitionKey {
-  const today = getTodayDateString();
-  const plannedDate = todo.planned_date;
-  const dueDate = todo.due_date;
-
-  if (
-    (plannedDate !== null && plannedDate <= today) ||
-    (dueDate !== null && dueDate <= today)
-  ) {
-    return "today";
-  }
-
-  if (
-    (plannedDate !== null && plannedDate > today) ||
-    (dueDate !== null && dueDate > today)
-  ) {
-    return "upcoming";
-  }
-
-  return "inbox";
-}
-
-function getTodoSearchText(todo: Todo): string {
-  return [
-    todo.content,
-    todo.planned_date ? `想做 ${todo.planned_date}` : "",
-    todo.due_date ? `截止 ${todo.due_date}` : "",
-    todo.completed_at ? `完成 ${todo.completed_at}` : "",
-    `p${todo.priority}`,
-    `!${todo.priority}`,
-    `优先级 ${todo.priority}`,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLocaleLowerCase();
-}
-
-function matchesSearchQuery(todo: Todo, query: string): boolean {
-  const terms = query
-    .trim()
-    .toLocaleLowerCase()
-    .split(/\s+/)
-    .filter(Boolean);
-  if (terms.length === 0) return false;
-
-  const haystack = getTodoSearchText(todo);
-  return terms.every((term) => haystack.includes(term));
-}
-
-function buildSearchResultGroups(todos: Todo[], query: string): SearchResultGroup[] {
-  const grouped: Record<SearchPartitionKey, Todo[]> = {
-    today: [],
-    upcoming: [],
-    inbox: [],
-    completed: [],
-  };
-
-  for (const todo of todos) {
-    if (!matchesSearchQuery(todo, query)) continue;
-    const key = todo.done ? "completed" : getTodoPartition(todo);
-    grouped[key].push(todo);
-  }
-
-  const order: SearchPartitionKey[] = ["today", "upcoming", "inbox", "completed"];
-  return order
-    .map((key) => ({
-      key,
-      label: SEARCH_GROUP_LABELS[key],
-      todos: grouped[key],
-    }))
-    .filter((group) => group.todos.length > 0);
-}
-
-function getCompletionDate(todo: Todo): string | null {
-  return todo.done ? todo.completed_at?.slice(0, 10) ?? null : null;
-}
-
-function calculateStats(todos: Todo[]): TodoStats {
-  const today = new Date();
-  const todayStr = toDateString(today);
-  const weekStart = toDateString(startOfWeek(today));
-  const completedDates = todos
-    .map(getCompletionDate)
-    .filter((date): date is string => date !== null);
-
-  const weekCompletedCount = completedDates.filter(
-    (date) => date >= weekStart && date <= todayStr,
-  ).length;
-
-  const completedDateSet = new Set(completedDates);
-  let streakDays = 0;
-  for (let offset = 0; ; offset += 1) {
-    const date = toDateString(addDays(today, -offset));
-    if (!completedDateSet.has(date)) break;
-    streakDays += 1;
-  }
-
-  const trend = Array.from({ length: 7 }, (_, index) => {
-    const date = addDays(today, index - 6);
-    const dateString = toDateString(date);
-    return {
-      date: dateString,
-      label: `${date.getMonth() + 1}/${date.getDate()}`,
-      count: completedDates.filter((completedDate) => completedDate === dateString)
-        .length,
-    };
-  });
-
-  const recentCompleted = todos
-    .filter((todo) => todo.done && todo.completed_at !== null)
-    .sort((left, right) => right.completed_at!.localeCompare(left.completed_at!))
-    .slice(0, 5)
-    .map((todo) => ({
+function normalizeStats(stats: GeneratedTodoStats): TodoStats {
+  return {
+    weekCompletedCount: stats.week_completed_count ?? 0,
+    streakDays: stats.streak_days ?? 0,
+    trend: stats.trend ?? [],
+    recentCompleted: (stats.recent_completed ?? []).map((todo) => ({
       id: todo.id,
       content: todo.content,
-      completedAt: todo.completed_at!,
-    }));
-
-  return {
-    weekCompletedCount,
-    streakDays,
-    trend,
-    recentCompleted,
+      completedAt: todo.completed_at,
+    })),
   };
 }
 
-function shouldSendStartupReminder(todo: Todo, today: string): boolean {
-  return (
-    !todo.done &&
-    todo.reminder_enabled &&
-    ((todo.planned_date !== null && todo.planned_date <= today) ||
-      (todo.due_date !== null && todo.due_date <= today))
-  );
+function normalizeAppView(view: GeneratedAppViewState) {
+  return {
+    partitions: normalizePartitions(view.partitions),
+    stats: normalizeStats(view.stats),
+  };
+}
+
+function normalizeSearchGroups(
+  groups: GeneratedSearchResultGroup[],
+): SearchResultGroup[] {
+  return groups.flatMap((group) => {
+    if (!isSearchPartitionKey(group.key)) return [];
+    return [
+      {
+        key: group.key,
+        label: group.label,
+        todos: group.todos.map(normalizeTodo),
+      },
+    ];
+  });
 }
 
 /**
- * 共享的 Todo 业务逻辑 Hook。
- * 被移动端和桌面端共同使用。
+ * 共享的 Todo UI hook。
+ * 业务派生数据由 Rust 后端计算，前端只保留交互状态和命令编排。
  */
 export function useTodos() {
   const [state, setState] = createStore<AppState>(EMPTY_STATE);
+  const [view, setView] = createStore({
+    partitions: EMPTY_PARTITIONS,
+    stats: EMPTY_STATS,
+  });
   const [loaded, setLoaded] = createSignal(false);
   const [focusRecommendation, setFocusRecommendation] =
     createSignal<FocusRouteRecommendation | null>(null);
@@ -326,14 +221,40 @@ export function useTodos() {
     setState(normalizeState(nextState));
   };
 
+  const applySnapshot = (snapshot: GeneratedAppSnapshot) => {
+    applyState(snapshot.state);
+    setView(normalizeAppView(snapshot.view));
+  };
+
+  const reloadSnapshot = async () => {
+    const result = await commands.loadAppSnapshot(getTodayDateString());
+    if (result.status === "ok") {
+      applySnapshot(result.data);
+      return true;
+    }
+
+    console.error("无法从 Rust 中加载快照：", result.error);
+    return false;
+  };
+
+  const handleSnapshotResult = (
+    result:
+      | { status: "ok"; data: GeneratedAppSnapshot }
+      | { status: "error"; error: string },
+  ) => {
+    if (result.status === "ok") {
+      applySnapshot(result.data);
+      return true;
+    } else {
+      console.error("状态更新失败：", result.error);
+      return false;
+    }
+  };
+
   onMount(async () => {
     try {
-      const result = await commands.loadAppState();
-      if (result.status === "ok") {
-        applyState(result.data);
+      if (await reloadSnapshot()) {
         void requestFocusRecommendation("today");
-      } else {
-        console.error("无法从 Rust 中加载数据：", result.error);
       }
     } catch (e) {
       console.error("无法从 Rust 中加载数据：", e);
@@ -344,17 +265,8 @@ export function useTodos() {
 
   const todos = createMemo(() => state.todos);
   const tags = createMemo(() => state.tags);
-  const partitions = createMemo(() => partitionTodos(state.todos));
-  const stats = createMemo(() => calculateStats(state.todos));
-
-  const handleCommandResult = (result: Awaited<ReturnType<typeof commands.loadAppState>>) => {
-    if (result.status === "ok") {
-      applyState(result.data);
-      return true;
-    }
-    console.error("状态更新失败：", result.error);
-    return false;
-  };
+  const partitions = createMemo(() => view.partitions);
+  const stats = createMemo(() => view.stats);
 
   const normalizeFocusRecommendation = (
     recommendation: GeneratedFocusRouteRecommendation | null,
@@ -398,68 +310,73 @@ export function useTodos() {
   ) => {
     const result = await commands.addTodo(content, plannedDate, dueDate, getTodayDateString());
     setFocusRecommendation(null);
-    return handleCommandResult(result);
+    return handleSnapshotResult(result);
   };
 
   const handleDelete = async (id: string) => {
-    const result = await commands.deleteTodo(id);
-    handleCommandResult(result);
+    const result = await commands.deleteTodo(id, getTodayDateString());
+    handleSnapshotResult(result);
   };
 
   const handleToggle = async (id: string, currentView?: CorePartitionKey) => {
     const todo = state.todos.find((item) => item.id === id);
     const willComplete = todo?.done === false;
     const completedAt = todo?.done ? null : getTodayDateString();
-    const result = await commands.toggleTodo(id, completedAt);
-    if (handleCommandResult(result) && willComplete && currentView) {
+    const result = await commands.toggleTodo(id, completedAt, getTodayDateString());
+    if (handleSnapshotResult(result) && willComplete && currentView) {
       void requestFocusRecommendation(currentView);
     }
   };
 
   const handleUpdate = async (id: string, content: string) => {
-    const result = await commands.updateTodoContent(id, content);
-    handleCommandResult(result);
+    const result = await commands.updateTodoContent(id, content, getTodayDateString());
+    handleSnapshotResult(result);
   };
 
   const handleUpdatePlannedDate = async (id: string, plannedDate: string | null) => {
-    const result = await commands.updateTodoPlannedDate(id, plannedDate);
-    handleCommandResult(result);
+    const result = await commands.updateTodoPlannedDate(
+      id,
+      plannedDate,
+      getTodayDateString(),
+    );
+    handleSnapshotResult(result);
     setFocusRecommendation(null);
   };
 
   const handleUpdateDueDate = async (id: string, dueDate: string | null) => {
-    const result = await commands.updateTodoDueDate(id, dueDate);
-    handleCommandResult(result);
+    const result = await commands.updateTodoDueDate(id, dueDate, getTodayDateString());
+    handleSnapshotResult(result);
     setFocusRecommendation(null);
   };
 
   const handleUpdatePriority = async (id: string, priority: number) => {
-    const result = await commands.updateTodoPriority(id, priority);
-    handleCommandResult(result);
+    const result = await commands.updateTodoPriority(id, priority, getTodayDateString());
+    handleSnapshotResult(result);
   };
 
   const handleUpdateTags = async (id: string, tagIds: string[]) => {
-    const result = await commands.updateTodoTags(id, tagIds);
-    handleCommandResult(result);
+    const result = await commands.updateTodoTags(id, tagIds, getTodayDateString());
+    handleSnapshotResult(result);
   };
 
   const handleCreateTag = async (name: string, color: string) => {
-    const result = await commands.createTag(name, color);
-    return handleCommandResult(result);
+    const result = await commands.createTag(name, color, getTodayDateString());
+    return handleSnapshotResult(result);
   };
 
   const handleApplyAppState = (nextState: GeneratedAppState) => {
     applyState(nextState);
+    void reloadSnapshot();
   };
 
   const handleUpdateTag = async (id: string, name: string, color: string) => {
-    const result = await commands.updateTag(id, name, color);
-    handleCommandResult(result);
+    const result = await commands.updateTag(id, name, color, getTodayDateString());
+    handleSnapshotResult(result);
   };
 
   const handleDeleteTag = async (id: string) => {
-    const result = await commands.deleteTag(id);
-    handleCommandResult(result);
+    const result = await commands.deleteTag(id, getTodayDateString());
+    handleSnapshotResult(result);
   };
 
   const getTodosForView = (view: ViewKey): Todo[] => {
@@ -470,12 +387,29 @@ export function useTodos() {
     return [];
   };
 
+  const searchTodos = async (query: string): Promise<SearchResultGroup[]> => {
+    const trimmed = query.trim();
+    if (!trimmed) return [];
+
+    const result = await commands.searchTodos(trimmed, getTodayDateString());
+    if (result.status === "ok") {
+      return normalizeSearchGroups(result.data);
+    }
+
+    console.error("后台搜索失败：", result.error);
+    return [];
+  };
+
   let notificationInFlight = false;
   const notifiedThisLaunch = new Set<string>();
 
   const handleUpdateReminder = async (id: string, reminderEnabled: boolean) => {
-    const result = await commands.updateTodoReminder(id, reminderEnabled);
-    if (handleCommandResult(result)) {
+    const result = await commands.updateTodoReminder(
+      id,
+      reminderEnabled,
+      getTodayDateString(),
+    );
+    if (handleSnapshotResult(result)) {
       if (!reminderEnabled) {
         notifiedThisLaunch.delete(id);
       } else {
@@ -487,15 +421,20 @@ export function useTodos() {
   const runDueNotifications = async () => {
     if (!loaded() || notificationInFlight) return;
 
-    const today = getTodayDateString();
-    const pendingTodos = state.todos.filter(
-      (todo) =>
-        !notifiedThisLaunch.has(todo.id) && shouldSendStartupReminder(todo, today),
-    );
-    if (pendingTodos.length === 0) return;
-
     notificationInFlight = true;
+    const today = getTodayDateString();
     try {
+      const remindersResult = await commands.getDueReminders(today);
+      if (remindersResult.status === "error") {
+        console.error("后台提醒检查失败：", remindersResult.error);
+        return;
+      }
+
+      const pendingTodos: ReminderCandidate[] = remindersResult.data.filter(
+        (todo) => !notifiedThisLaunch.has(todo.id),
+      );
+      if (pendingTodos.length === 0) return;
+
       let permissionGranted = await isPermissionGranted();
       if (!permissionGranted) {
         const permission = await requestPermission();
@@ -511,7 +450,7 @@ export function useTodos() {
           body: todo.content,
         });
         const result = await commands.markTodoNotified(todo.id, today);
-        handleCommandResult(result);
+        handleSnapshotResult(result);
       }
     } catch (error) {
       console.error("发送提醒失败：", error);
@@ -552,8 +491,7 @@ export function useTodos() {
     partitions,
     focusRecommendation,
     stats,
-    buildSearchResultGroups: (query: string) =>
-      buildSearchResultGroups(state.todos, query),
+    searchTodos,
     getTodosForView,
     runDueNotifications,
     requestFocusRecommendation,

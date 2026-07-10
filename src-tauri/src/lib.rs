@@ -30,6 +30,9 @@ pub fn run() {
 
     let builder = Builder::new().commands(collect_commands![
         store::load_app_state,
+        store::load_app_snapshot,
+        store::search_todos,
+        store::get_due_reminders,
         store::add_todo,
         store::check_focus_route,
         store::delete_todo,
@@ -172,6 +175,9 @@ mod tests {
     fn export_typescript_bindings() {
         let builder = Builder::new().commands(collect_commands![
             super::store::load_app_state,
+            super::store::load_app_snapshot,
+            super::store::search_todos,
+            super::store::get_due_reminders,
             super::store::add_todo,
             super::store::check_focus_route,
             super::store::delete_todo,

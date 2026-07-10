@@ -50,7 +50,7 @@ interface DesktopAppProps {
   partitions: Partitions;
   focusRecommendation: FocusRouteRecommendation | null;
   stats: TodoStats;
-  buildSearchResultGroups: (query: string) => SearchResultGroup[];
+  searchTodos: (query: string) => Promise<SearchResultGroup[]>;
   handleAdd: (
     content: string,
     plannedDate: string | null,
@@ -277,7 +277,7 @@ export default function DesktopApp(props: DesktopAppProps) {
               </header>
               <SearchPanel
                 variant="desktop"
-                buildSearchResultGroups={props.buildSearchResultGroups}
+                searchTodos={props.searchTodos}
                 onToggle={props.handleToggle}
                 onDelete={props.handleDelete}
                 onUpdate={props.handleUpdate}

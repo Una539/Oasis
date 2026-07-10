@@ -26,7 +26,7 @@ function App() {
     partitions,
     focusRecommendation,
     stats,
-    buildSearchResultGroups,
+    searchTodos,
     runDueNotifications,
     handleAdd,
     handleDelete,
@@ -47,7 +47,7 @@ function App() {
           partitions={partitions()}
           focusRecommendation={focusRecommendation()}
           stats={stats()}
-          buildSearchResultGroups={buildSearchResultGroups}
+          searchTodos={searchTodos}
           handleAdd={handleAdd}
           handleDelete={handleDelete}
           handleToggle={handleToggle}
@@ -63,7 +63,7 @@ function App() {
           partitions={partitions()}
           focusRecommendation={focusRecommendation()}
           stats={stats()}
-          buildSearchResultGroups={buildSearchResultGroups}
+          searchTodos={searchTodos}
           handleAdd={handleAdd}
           handleDelete={handleDelete}
           handleToggle={handleToggle}

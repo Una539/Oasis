@@ -20,7 +20,7 @@ import {
   createListCollection as createSelectCollection,
   type SelectValueChangeDetails,
 } from "@ark-ui/solid/select";
-import { For, Index, Show, createSignal } from "solid-js";
+import { For, Index, Show, createSignal, onCleanup, onMount } from "solid-js";
 import { Portal } from "solid-js/web";
 import { BarChart3Icon, ChevronsUpDownIcon, SearchIcon, XIcon } from "lucide-solid";
 import {
@@ -44,7 +44,7 @@ interface MobileAppProps {
   partitions: Partitions;
   focusRecommendation: FocusRouteRecommendation | null;
   stats: TodoStats;
-  buildSearchResultGroups: (query: string) => SearchResultGroup[];
+  searchTodos: (query: string) => Promise<SearchResultGroup[]>;
   handleAdd: (
     content: string,
     plannedDate: string | null,
@@ -81,6 +81,26 @@ export default function MobileApp(props: MobileAppProps) {
   const [currentView, setCurrentView] = createSignal<CorePartitionKey>("today");
   const [statsOpen, setStatsOpen] = createSignal(false);
   const [searchOpen, setSearchOpen] = createSignal(false);
+
+  onMount(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+
+    const updateKeyboardInset = () => {
+      const inset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+      document.documentElement.style.setProperty("--keyboard-inset", `${inset}px`);
+    };
+
+    updateKeyboardInset();
+    viewport.addEventListener("resize", updateKeyboardInset);
+    viewport.addEventListener("scroll", updateKeyboardInset);
+
+    onCleanup(() => {
+      viewport.removeEventListener("resize", updateKeyboardInset);
+      viewport.removeEventListener("scroll", updateKeyboardInset);
+      document.documentElement.style.removeProperty("--keyboard-inset");
+    });
+  });
 
   const handleValueChange = (details: SelectValueChangeDetails<Item>) => {
     const nextView = details.value[0] as CorePartitionKey | undefined;
@@ -265,7 +285,7 @@ export default function MobileApp(props: MobileAppProps) {
             </header>
             <SearchPanel
               variant="mobile"
-              buildSearchResultGroups={props.buildSearchResultGroups}
+              searchTodos={props.searchTodos}
               onToggle={props.handleToggle}
               onDelete={props.handleDelete}
               onUpdate={props.handleUpdate}

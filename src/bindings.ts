@@ -5,33 +5,46 @@ import { invoke as __TAURI_INVOKE } from "@tauri-apps/api/core";
 /** Commands */
 export const commands = {
 	loadAppState: () => typedError<AppState, string>(__TAURI_INVOKE("load_app_state")),
-	addTodo: (content: string, plannedDate: string | null, dueDate: string | null, today: string) => typedError<AppState, string>(__TAURI_INVOKE("add_todo", { content, plannedDate, dueDate, today })),
+	loadAppSnapshot: (today: string) => typedError<AppSnapshot, string>(__TAURI_INVOKE("load_app_snapshot", { today })),
+	searchTodos: (query: string, today: string) => typedError<SearchResultGroup[], string>(__TAURI_INVOKE("search_todos", { query, today })),
+	getDueReminders: (today: string) => typedError<ReminderCandidate[], string>(__TAURI_INVOKE("get_due_reminders", { today })),
+	addTodo: (content: string, plannedDate: string | null, dueDate: string | null, today: string) => typedError<AppSnapshot, string>(__TAURI_INVOKE("add_todo", { content, plannedDate, dueDate, today })),
 	checkFocusRoute: (currentView: string, today: string) => typedError<{
 	target_view: string,
 	message: string,
 	action_label: string,
 } | null, string>(__TAURI_INVOKE("check_focus_route", { currentView, today })),
-	deleteTodo: (id: string) => typedError<AppState, string>(__TAURI_INVOKE("delete_todo", { id })),
-	toggleTodo: (id: string, completedAt: string | null) => typedError<AppState, string>(__TAURI_INVOKE("toggle_todo", { id, completedAt })),
-	updateTodoContent: (id: string, content: string) => typedError<AppState, string>(__TAURI_INVOKE("update_todo_content", { id, content })),
-	updateTodoPlannedDate: (id: string, plannedDate: string | null) => typedError<AppState, string>(__TAURI_INVOKE("update_todo_planned_date", { id, plannedDate })),
-	updateTodoDueDate: (id: string, dueDate: string | null) => typedError<AppState, string>(__TAURI_INVOKE("update_todo_due_date", { id, dueDate })),
-	updateTodoPriority: (id: string, priority: number) => typedError<AppState, string>(__TAURI_INVOKE("update_todo_priority", { id, priority })),
-	updateTodoTags: (id: string, tagIds: string[]) => typedError<AppState, string>(__TAURI_INVOKE("update_todo_tags", { id, tagIds })),
-	updateTodoReminder: (id: string, reminderEnabled: boolean) => typedError<AppState, string>(__TAURI_INVOKE("update_todo_reminder", { id, reminderEnabled })),
-	markTodoNotified: (id: string, notifiedOn: string) => typedError<AppState, string>(__TAURI_INVOKE("mark_todo_notified", { id, notifiedOn })),
+	deleteTodo: (id: string, today: string) => typedError<AppSnapshot, string>(__TAURI_INVOKE("delete_todo", { id, today })),
+	toggleTodo: (id: string, completedAt: string | null, today: string) => typedError<AppSnapshot, string>(__TAURI_INVOKE("toggle_todo", { id, completedAt, today })),
+	updateTodoContent: (id: string, content: string, today: string) => typedError<AppSnapshot, string>(__TAURI_INVOKE("update_todo_content", { id, content, today })),
+	updateTodoPlannedDate: (id: string, plannedDate: string | null, today: string) => typedError<AppSnapshot, string>(__TAURI_INVOKE("update_todo_planned_date", { id, plannedDate, today })),
+	updateTodoDueDate: (id: string, dueDate: string | null, today: string) => typedError<AppSnapshot, string>(__TAURI_INVOKE("update_todo_due_date", { id, dueDate, today })),
+	updateTodoPriority: (id: string, priority: number, today: string) => typedError<AppSnapshot, string>(__TAURI_INVOKE("update_todo_priority", { id, priority, today })),
+	updateTodoTags: (id: string, tagIds: string[], today: string) => typedError<AppSnapshot, string>(__TAURI_INVOKE("update_todo_tags", { id, tagIds, today })),
+	updateTodoReminder: (id: string, reminderEnabled: boolean, today: string) => typedError<AppSnapshot, string>(__TAURI_INVOKE("update_todo_reminder", { id, reminderEnabled, today })),
+	markTodoNotified: (id: string, notifiedOn: string) => typedError<AppSnapshot, string>(__TAURI_INVOKE("mark_todo_notified", { id, notifiedOn })),
 	analyzeTagInput: (value: string, caret: number, selectedTagIds: string[]) => typedError<TagInputAnalysis, string>(__TAURI_INVOKE("analyze_tag_input", { value, caret, selectedTagIds })),
 	applyTagSuggestion: (value: string, selectedTagIds: string[], tokenStart: number, tokenEnd: number, action: TagSuggestionAction) => typedError<ApplyTagSuggestionResult, string>(__TAURI_INVOKE("apply_tag_suggestion", { value, selectedTagIds, tokenStart, tokenEnd, action })),
-	createTag: (name: string, color: string) => typedError<AppState, string>(__TAURI_INVOKE("create_tag", { name, color })),
-	updateTag: (id: string, name: string, color: string) => typedError<AppState, string>(__TAURI_INVOKE("update_tag", { id, name, color })),
-	deleteTag: (id: string) => typedError<AppState, string>(__TAURI_INVOKE("delete_tag", { id })),
+	createTag: (name: string, color: string, today: string) => typedError<AppSnapshot, string>(__TAURI_INVOKE("create_tag", { name, color, today })),
+	updateTag: (id: string, name: string, color: string, today: string) => typedError<AppSnapshot, string>(__TAURI_INVOKE("update_tag", { id, name, color, today })),
+	deleteTag: (id: string, today: string) => typedError<AppSnapshot, string>(__TAURI_INVOKE("delete_tag", { id, today })),
 };
 
 /* Types */
+export type AppSnapshot = {
+	state: AppState,
+	view: AppViewState,
+};
+
 export type AppState = {
 	schema_version?: number,
 	todos?: Todo[],
 	tags?: Tag[],
+};
+
+export type AppViewState = {
+	partitions: TodoPartitions,
+	stats: TodoStats,
 };
 
 export type ApplyTagSuggestionResult = {
@@ -51,6 +64,23 @@ export type MentionToken = {
 	start: number,
 	end: number,
 	query: string,
+};
+
+export type RecentCompletedTodo = {
+	id: string,
+	content: string,
+	completed_at: string,
+};
+
+export type ReminderCandidate = {
+	id: string,
+	content: string,
+};
+
+export type SearchResultGroup = {
+	key: string,
+	label: string,
+	todos: Todo[],
 };
 
 export type Tag = {
@@ -87,6 +117,25 @@ export type Todo = {
 	reminder_enabled?: boolean,
 	completed_at?: string | null,
 	last_notified_on?: string | null,
+};
+
+export type TodoPartitions = {
+	today: Todo[],
+	upcoming: Todo[],
+	inbox: Todo[],
+};
+
+export type TodoStats = {
+	week_completed_count: number,
+	streak_days: number,
+	trend: TrendDay[],
+	recent_completed: RecentCompletedTodo[],
+};
+
+export type TrendDay = {
+	date: string,
+	label: string,
+	count: number,
 };
 
 /* Tauri Specta runtime */

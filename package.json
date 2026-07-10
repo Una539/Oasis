@@ -12,6 +12,7 @@
     "android:init": "tauri android init",
     "android:dev": "tauri android dev",
     "android:dev:open": "tauri android dev --open",
+    "android:dev:apk": "tauri android build --debug --apk --ci",
     "android:build": "tauri android build"
   },
   "packageManager": "pnpm@11.0.9",

@@ -91,45 +91,50 @@ export default function TodoInput(props: TodoInputProps) {
             class="flex-1 border-none bg-transparent color-text text-[15px] px-4 py-3 outline-none min-h-12 placeholder:text-text-muted"
             onInput={(event) => setContent(event.currentTarget.value)}
           />
-          <div class="w-px bg-border flex-shrink-0" />
+          <div class="todo-input-divider w-px bg-border flex-shrink-0" />
 
-          <Show when={controlsOpen()}>
-            <div id="todo-input-manual-controls" class="todo-input-manual-controls">
-              <button
-                type="button"
-                class="todo-input-action-button calendar flex items-center justify-center border-none bg-transparent cursor-pointer color-text-muted transition-all duration-150 flex-shrink-0 min-h-12 hover:color-text hover:bg-surface-hover active:opacity-80"
-                onPointerDown={(event) => {
-                  event.preventDefault();
-                  handledDateTogglePointer = true;
-                  toggleDateOpen();
-                }}
-                onClick={() => {
-                  if (handledDateTogglePointer) {
-                    handledDateTogglePointer = false;
-                    return;
-                  }
-                  toggleDateOpen();
-                }}
-                aria-label={required() ? "选择必做日期" : "选择想做日期"}
-                title={required() ? "选择必做日期" : "选择想做日期"}
-                aria-pressed={dateOpen()}
-              >
-                <Calendar size={18} />
-              </button>
+          <div
+            id="todo-input-manual-controls"
+            class="todo-input-manual-controls"
+            data-state={controlsOpen() ? "open" : "closed"}
+            aria-hidden={!controlsOpen()}
+          >
+            <button
+              type="button"
+              class="todo-input-action-button calendar flex items-center justify-center border-none bg-transparent cursor-pointer color-text-muted transition-all duration-150 flex-shrink-0 min-h-12 hover:color-text hover:bg-surface-hover active:opacity-80"
+              disabled={!controlsOpen()}
+              onPointerDown={(event) => {
+                event.preventDefault();
+                handledDateTogglePointer = true;
+                toggleDateOpen();
+              }}
+              onClick={() => {
+                if (handledDateTogglePointer) {
+                  handledDateTogglePointer = false;
+                  return;
+                }
+                toggleDateOpen();
+              }}
+              aria-label={required() ? "选择必做日期" : "选择想做日期"}
+              title={required() ? "选择必做日期" : "选择想做日期"}
+              aria-pressed={dateOpen()}
+            >
+              <Calendar size={18} />
+            </button>
 
-              <Checkbox.Root
-                class="todo-required-checkbox"
-                checked={required()}
-                onCheckedChange={(details) => setRequired(details.checked === true)}
-                title="标记为必做"
-              >
-                <Checkbox.Control class="todo-required-checkbox-control">
-                  <Crosshair size={18} strokeWidth={2.2} />
-                </Checkbox.Control>
-                <Checkbox.HiddenInput />
-              </Checkbox.Root>
-            </div>
-          </Show>
+            <Checkbox.Root
+              class="todo-required-checkbox"
+              checked={required()}
+              disabled={!controlsOpen()}
+              onCheckedChange={(details) => setRequired(details.checked === true)}
+              title="标记为必做"
+            >
+              <Checkbox.Control class="todo-required-checkbox-control">
+                <Crosshair size={18} strokeWidth={2.2} />
+              </Checkbox.Control>
+              <Checkbox.HiddenInput />
+            </Checkbox.Root>
+          </div>
 
           <button
             type="button"
